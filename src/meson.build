@@ -479,6 +479,9 @@ sources = files(
     'video/v9990/V9990SDLRasterizer.cc',
     'video/v9990/V9990VRAM.cc',
     'video/v9990/Video9000.cc',
+    'video/tangnano20k_vdp_cartridge/OpenMsxVdpBridge.cc',
+    'video/tangnano20k_vdp_cartridge/TangNanoVdpCartridge.cc',
+    'video/tangnano20k_vdp_cartridge/VdpCartridgeDummy.cc',
 )
 
 if not get_option('alsamidi').disabled()
@@ -592,4 +595,5 @@ incdirs = include_directories(
     'video/ld',
     'video/scalers',
     'video/v9990',
+    'video/tangnano20k_vdp_cartridge',
 )
