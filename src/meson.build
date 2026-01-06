@@ -482,6 +482,7 @@ sources = files(
     'video/tangnano20k_vdp_cartridge/OpenMsxVdpBridge.cc',
     'video/tangnano20k_vdp_cartridge/TangNanoVdpCartridge.cc',
     'video/tangnano20k_vdp_cartridge/VdpCartridgeDummy.cc',
+    'video/tangnano20k_vdp_cartridge/TangNanoVdpDevice.cc',
 )
 
 if not get_option('alsamidi').disabled()
