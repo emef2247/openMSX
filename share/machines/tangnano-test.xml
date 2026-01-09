@@ -3,11 +3,11 @@
 <msxconfig>
 
   <info>
-    <manufacturer>Experimental</manufacturer>
+    <manufacturer>Experimental (based on Panasonic)</manufacturer>
     <code>TANGNANO-VDP</code>
     <release_year>2026</release_year>
-    <description>Test machine configuration for the TangNanoVdpDevice, based on the Panasonic FS-A1ST with a modified VDP.</description>
-    <type>MSX2++</type>
+    <description>FS-A1ST based test machine using a TangNano VDP cartridge (replaces the V9958).</description>
+    <type>MSXturboR</type>
     <region>jp</region>
   </info>
 
@@ -60,10 +60,9 @@
       <graph_locks>false</graph_locks>
     </PPI>
 
-    <TangNanoVdpDevice id="VDP">
-      <io base="0x98" num="4" type="IO"/>
-    </TangNanoVdpDevice>
-	
+    <!-- NOTE: original A1ST has a top-level VDP; we remove it here because
+         TangNano is provided as a cartridge (slot device) that replaces the V9958. -->
+
     <PSG id="PSG">
       <keyboardlayout>JIS</keyboardlayout>
       <mirrored_registers>false</mirrored_registers>
@@ -71,7 +70,7 @@
         <volume>21000</volume>
       </sound>
       <io base="0xA0" num="4" type="IO"/>
-      <ignorePortDirections>true</ignorePortDirections> <!-- not sure, but guess based on use of Engine IC -->
+      <ignorePortDirections>true</ignorePortDirections>
     </PSG>
 
     <RTC id="Real time clock">
@@ -152,11 +151,12 @@
 
     <primary slot="3">
 
+      <!-- keep Main RAM in slot 3-0 as original A1ST (do not move) -->
       <secondary slot="0">
         <PanasonicRAM id="Main RAM">
           <size>256</size>
           <mem base="0x0000" size="0x10000"/>
-          <initialContent encoding="gz-base64">eJxjYPgPBAxAMDLpweCGgaQBkHH/AQ==</initialContent> <!-- 0000FFFFFFFF0000*32 + FFFF00000000FFFF*32, as found in the machine of Peter Hanraets with serial 0LNMD14115 -->
+          <initialContent encoding="gz-base64">eJxjYPgPBAxAMDLpweCGgaQBkHH/AQ==</initialContent>
         </PanasonicRAM>
       </secondary>
 
@@ -204,6 +204,14 @@
           <mem base="0x0000" size="0x10000"/>
           <device idref="Main RAM"/>
         </ROM>
+
+        <!-- TangNano cartridge placed in same secondary (slot 3-3).
+             This replaces the system VDP (V9958) in this configuration. -->
+        <TangNanoVdpDevice id="VDP">
+          <!-- use same I/O base as the original VDP so TangNano handles VDP ports -->
+          <io base="0x98" num="5" type="IO"/>
+        </TangNanoVdpDevice>
+
       </secondary>
 
     </primary>

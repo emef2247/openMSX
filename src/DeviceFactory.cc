@@ -93,6 +93,7 @@
 #include "XMLElement.hh"
 #include "YamahaFDC.hh"
 #include "YamahaSKW01.hh"
+#include "TangNanoVdpDevice.hh"
 
 #include "one_of.hh"
 
@@ -102,6 +103,11 @@
 #if COMPONENT_LASERDISC
 #include "PioneerLDControl.hh"
 #endif
+
+#include <unistd.h>
+#include <string_view>
+#include <cstdio>
+#include <cstring>
 
 namespace openmsx {
 
@@ -146,6 +152,27 @@ std::unique_ptr<MSXDevice> DeviceFactory::create(DeviceConfig& conf)
 {
 	std::unique_ptr<MSXDevice> result;
 	const auto& type = conf.getXML()->getName();
+	conf.getCliComm().printInfo(std::string("DeviceFactory::create: requested device type='") + std::string(type) + "'");
+	{
+		// print human-readable type (no allocation/concat with string_view)
+		std::string_view sv(type);
+		const char pre[] = "DeviceFactory::create: requested device type='";
+		write(STDERR_FILENO, pre, strlen(pre));
+		if (!sv.empty()) write(STDERR_FILENO, sv.data(), sv.size());
+		const char suf[] = "'\n";
+		write(STDERR_FILENO, suf, strlen(suf));
+
+		// print hex bytes to detect BOM / invisible chars
+		const char hexpre[] = "DeviceFactory::create: requested device type bytes:";
+		write(STDERR_FILENO, hexpre, strlen(hexpre));
+		for (unsigned char c : sv) {
+			char buf[4];
+			int n = snprintf(buf, sizeof(buf), " %02x", c);
+			write(STDERR_FILENO, buf, n);
+		}
+		write(STDERR_FILENO, "\n", 1);
+	}
+
 	if (type == "PPI") {
 		result = std::make_unique<MSXPPI>(conf);
 	} else if (type == "SVIPPI") {
@@ -154,6 +181,8 @@ std::unique_ptr<MSXDevice> DeviceFactory::create(DeviceConfig& conf)
 		result = std::make_unique<MSXRam>(conf);
 	} else if (type == "VDP") {
 		result = std::make_unique<VDP>(conf);
+	} else if (type == "TangNanoVdpDevice") {
+        result = std::make_unique<TangNanoVdpDevice>(conf);
 	} else if (type == "E6Timer") {
 		result = std::make_unique<MSXE6Timer>(conf);
 	} else if (type == "HiResTimer") {
@@ -322,6 +351,14 @@ std::unique_ptr<MSXDevice> DeviceFactory::create(DeviceConfig& conf)
 	} else if (type == "MSXPiDevice") {
 		result = std::make_unique<MSXPiDevice>(conf);
 	} else {
+		// print unknown type using string_view write (no concatenation)
+		std::string_view sv(type);
+		const char pre2[] = "DeviceFactory::create: UNKNOWN device type='";
+		write(STDERR_FILENO, pre2, strlen(pre2));
+		if (!sv.empty()) write(STDERR_FILENO, sv.data(), sv.size());
+		const char suf2[] = "'\n";
+		write(STDERR_FILENO, suf2, strlen(suf2));
+
 		throw MSXException("Unknown device \"", type,
 		                   "\" specified in configuration");
 	}

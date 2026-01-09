@@ -1,0 +1,60 @@
+<?xml version="1.0" ?>
+<!DOCTYPE msxconfig SYSTEM 'msxconfig2.dtd'>
+<msxconfig>
+
+  <info>
+    <manufacturer>Experimental</manufacturer>
+    <code>TANGNANO-VDP</code>
+    <release_year>2026</release_year>
+    <description>Test machine configuration for the TangNanoVdpDevice, based on the Panasonic FS-A1ST with a modified VDP.</description>
+    <type>MSX2++</type>
+    <region>jp</region>
+  </info>
+
+  <RenShaTurbo>
+    <min_ints>47</min_ints>
+    <max_ints>221</max_ints>
+  </RenShaTurbo>
+
+  <MapperReadBackBits>5</MapperReadBackBits>
+
+  <PanasonicRom id="Firmware ROM">
+    <rom>
+      <sha1>c212b11fda13f83dafed688c54d098e7e47ab225</sha1>
+      <sha1>4b84465c2faa802bfd5f772118c4d31f993f29d0</sha1>
+      <filename>fs-a1st_firmware.rom</filename>
+    </rom>
+  </PanasonicRom>
+
+  <devices>
+    ... (省略: 中略している既存デバイス群は元ファイルと同じ) ...
+
+    <primary slot="3">
+      ...
+      <secondary slot="3">
+        <ROM id="FS-A1ST">
+          <mappertype>PANASONIC</mappertype>
+          <sramsize>16</sramsize>
+          <sram-mirrored>false</sram-mirrored>
+          <sramname>fs-a1st.sram</sramname>
+          <rom>
+            <firstblock>0</firstblock>
+            <lastblock>255</lastblock>
+          </rom>
+          <mem base="0x0000" size="0x10000"/>
+          <device idref="Main RAM"/>
+        </ROM>
+
+        <!-- TangNano をここに常駐させる（V9958 を置き換える想定） -->
+        <TangNanoVdpDevice id="VDP">
+          <!-- Important: use the same IO base used by the FS-A1ST VDP (V9958) -->
+          <io base="0x98" num="5" type="IO"/>
+        </TangNanoVdpDevice>
+
+      </secondary>
+    </primary>
+
+  </devices>
+
+</msxconfig>
+

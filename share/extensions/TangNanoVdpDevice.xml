@@ -1,0 +1,22 @@
+?xml version="1.0" ?>
+<!DOCTYPE msxconfig SYSTEM 'msxconfig2.dtd'>
+<msxconfig>
+  <info>
+    <name>TangNano VDP cartridge</name>
+    <manufacturer>HRA!</manufacturer>
+    <code>TANGNANO</code>
+    <release_year>2026</release_year>
+    <description>TangNano VDP cartridge (no ROM). Provides TangNanoVdpDevice.</description>
+    <type>graphics expansion</type>
+  </info>
+
+  <devices>
+    <!-- タグ名は DeviceFactory と一致させる -->
+    <TangNanoVdpDevice id="TangNanoVdp">
+      <!-- FS-A1ST の V9958 を置き換える想定: IO base を 0x98 に揃える -->
+      <io base="0x98" num="5" type="IO"/>
+      <timing>0</timing>
+    </TangNanoVdpDevice>
+  </devices>
+</msxconfig>
+
