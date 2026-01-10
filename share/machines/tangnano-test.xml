@@ -209,7 +209,9 @@
              This replaces the system VDP (V9958) in this configuration. -->
         <TangNanoVdpDevice id="VDP">
           <!-- use same I/O base as the original VDP so TangNano handles VDP ports -->
-          <io base="0x98" num="5" type="IO"/>
+		  <version>V9968</version>
+		  <vram>256</vram>
+		  <io base="0x98" num="5" type="IO"/>
         </TangNanoVdpDevice>
 
       </secondary>

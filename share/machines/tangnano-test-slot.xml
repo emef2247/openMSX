@@ -48,7 +48,9 @@
         <!-- TangNano をここに常駐させる（V9958 を置き換える想定） -->
         <TangNanoVdpDevice id="VDP">
           <!-- Important: use the same IO base used by the FS-A1ST VDP (V9958) -->
-          <io base="0x98" num="5" type="IO"/>
+		  <version>V9968</version>
+		  <vram>256</vram>
+		  <io base="0x98" num="5" type="IO"/>
         </TangNanoVdpDevice>
 
       </secondary>
