@@ -44,7 +44,33 @@ TODO:
 #include <cassert>
 #include <memory>
 
+#define ENABLE_VDP_EVENT_DEBUG
+#ifdef ENABLE_VDP_EVENT_DEBUG
+#include <cstdarg>
+#include <cstdio>
+#include <unistd.h>
+#endif
+
 namespace openmsx {
+
+#ifdef ENABLE_VDP_EVENT_DEBUG
+static void vdpDebug(const char* fmt, ...)
+{
+    char buf[512];
+    va_list ap;
+    va_start(ap, fmt);
+    int n = vsnprintf(buf, sizeof(buf), fmt, ap);
+    va_end(ap);
+    if (n > 0) {
+        if (n > (int)sizeof(buf)) n = sizeof(buf);
+        write(STDERR_FILENO, buf, (size_t)n);
+        write(STDERR_FILENO, "\n", 1);
+    }
+}
+#else
+static inline void vdpDebug(const char*, ...) { }
+#endif
+
 
 static uint8_t getDelayCycles(const XMLElement& devices) {
 	uint8_t cycles = 0;
@@ -126,6 +152,19 @@ VDP::VDP(const DeviceConfig& config)
 	int defaultSaturation = 54;
 
 	const auto& versionString = config.getChildData("version");
+#ifdef ENABLE_VDP_EVENT_DEBUG
+    // Debug: dump version (plain + hex) to help detect invisible chars/BOM.
+    vdpDebug("VDP.constructor: version='%.*s'", int(versionString.size()), versionString.data());
+    {
+        std::string hex = "VDP.constructor: version bytes:";
+        for (unsigned char c : versionString) {
+            char b[8];
+            int ln = snprintf(b, sizeof(b), " %02x", c);
+            hex.append(b, ln);
+        }
+        vdpDebug("%s", hex.c_str());
+    }
+#endif
 	if (versionString == "TMS99X8A") version = TMS99X8A;
 	else if (versionString == "TMS9918A") {
 		version = TMS99X8A;
@@ -306,6 +345,9 @@ void VDP::resetInit()
 
 void VDP::resetMasks(EmuTime time)
 {
+#ifdef ENABLE_VDP_EVENT_DEBUG
+    vdpDebug("VDP.resetMasks: frame=%d time=%llu", frameCount, (long long)getTicksThisFrame(time));
+#endif
 	updateNameBase(time);
 	updateColorBase(time);
 	updatePatternBase(time);
@@ -318,12 +360,18 @@ void VDP::resetMasks(EmuTime time)
 
 void VDP::powerUp(EmuTime time)
 {
+#ifdef ENABLE_VDP_EVENT_DEBUG
+    vdpDebug("VDP.powerUp: frame=%d time=%llu", frameCount, (long long)getTicksThisFrame(time));
+#endif
 	vram->clear();
 	reset(time);
 }
 
 void VDP::reset(EmuTime time)
 {
+#ifdef ENABLE_VDP_EVENT_DEBUG
+    vdpDebug("VDP.reset: frame=%d time=%llu", frameCount, (long long)getTicksThisFrame(time));
+#endif
 	syncVSync        .removeSyncPoint();
 	syncDisplayStart .removeSyncPoint();
 	syncVScan        .removeSyncPoint();
@@ -354,6 +402,9 @@ void VDP::reset(EmuTime time)
 
 void VDP::execVSync(EmuTime time)
 {
+#ifdef ENABLE_VDP_EVENT_DEBUG
+    vdpDebug("VDP.execVSync: frame=%d time=%llu", frameCount, (long long)getTicksThisFrame(time));
+#endif
 	// This frame is finished.
 	// Inform VDP subcomponents.
 	// TODO: Do this via VDPVRAM?
@@ -376,6 +427,9 @@ void VDP::execVSync(EmuTime time)
 
 void VDP::execDisplayStart(EmuTime time)
 {
+#ifdef ENABLE_VDP_EVENT_DEBUG
+    vdpDebug("VDP.execDisplayStart: frame=%d time=%llu", frameCount, (long long)getTicksThisFrame(time));
+#endif
 	// Display area starts here, unless we're doing overscan and it
 	// was already active.
 	if (!isDisplayArea) {
@@ -388,6 +442,9 @@ void VDP::execDisplayStart(EmuTime time)
 
 void VDP::execVScan(EmuTime time)
 {
+#ifdef ENABLE_VDP_EVENT_DEBUG
+    vdpDebug("VDP.execVScan: frame=%d time=%llu", frameCount, (long long)getTicksThisFrame(time));
+#endif
 	// VSCAN is the end of display.
 	// This will generate a VBLANK IRQ. Typically MSX software will
 	// poll the keyboard/joystick on this IRQ. So now is a good
@@ -416,6 +473,9 @@ void VDP::execHScan()
 
 void VDP::execHorAdjust(EmuTime time)
 {
+#ifdef ENABLE_VDP_EVENT_DEBUG
+    vdpDebug("VDP.execHorAdjust: frame=%d time=%llu", frameCount, (long long)getTicksThisFrame(time));
+#endif
 	int newHorAdjust = (controlRegs[18] & 0x0F) ^ 0x07;
 	if (controlRegs[25] & 0x08) {
 		newHorAdjust += 4;
@@ -426,6 +486,9 @@ void VDP::execHorAdjust(EmuTime time)
 
 void VDP::execSetMode(EmuTime time)
 {
+#ifdef ENABLE_VDP_EVENT_DEBUG
+    vdpDebug("VDP.execSetMode: frame=%d time=%llu", frameCount, (long long)getTicksThisFrame(time));
+#endif
 	updateDisplayMode(
 		DisplayMode(controlRegs[0], controlRegs[1], controlRegs[25]),
 		getCmdBit(),
@@ -434,6 +497,9 @@ void VDP::execSetMode(EmuTime time)
 
 void VDP::execSetBlank(EmuTime time)
 {
+#ifdef ENABLE_VDP_EVENT_DEBUG
+    vdpDebug("VDP.execSetBlank: frame=%d time=%llu", frameCount, (long long)getTicksThisFrame(time));
+#endif
 	bool newDisplayEnabled = (controlRegs[1] & 0x40) != 0;
 	if (isDisplayArea) {
 		vram->updateDisplayEnabled(newDisplayEnabled, time);
@@ -443,6 +509,9 @@ void VDP::execSetBlank(EmuTime time)
 
 void VDP::execSetSprites(EmuTime time)
 {
+#ifdef ENABLE_VDP_EVENT_DEBUG
+    vdpDebug("VDP.execSetSprites: frame=%d time=%llu", frameCount, (long long)getTicksThisFrame(time));
+#endif
 	bool newSpriteEnabled = (controlRegs[8] & 0x02) == 0;
 	vram->updateSpritesEnabled(newSpriteEnabled, time);
 	spriteEnabled = newSpriteEnabled;
@@ -450,6 +519,9 @@ void VDP::execSetSprites(EmuTime time)
 
 void VDP::execCpuVramAccess(EmuTime time)
 {
+#ifdef ENABLE_VDP_EVENT_DEBUG
+    vdpDebug("VDP.execCpuVramAccess: frame=%d time=%llu", frameCount, (long long)getTicksThisFrame(time));
+#endif
 	assert(!allowTooFastAccess);
 	pendingCpuAccess = false;
 	executeCpuVramAccess(time);
@@ -457,6 +529,9 @@ void VDP::execCpuVramAccess(EmuTime time)
 
 void VDP::execSyncCmdDone(EmuTime time)
 {
+#ifdef ENABLE_VDP_EVENT_DEBUG
+    vdpDebug("VDP.execSyncCmdDone: frame=%d time=%llu", frameCount, (long long)getTicksThisFrame(time));
+#endif
 	cmdEngine->sync(time);
 }
 
@@ -465,6 +540,9 @@ void VDP::execSyncCmdDone(EmuTime time)
 //       This makes sense, but it has not been tested on real MSX yet.
 void VDP::scheduleDisplayStart(EmuTime time)
 {
+#ifdef ENABLE_VDP_EVENT_DEBUG
+    vdpDebug("VDP.scheduleDisplayStart: frame=%d time=%llu", frameCount, (long long)getTicksThisFrame(time));
+#endif
 	// Remove pending DISPLAY_START sync point, if any.
 	if (displayStartSyncTime > time) {
 		syncDisplayStart.removeSyncPoint();
@@ -498,6 +576,9 @@ void VDP::scheduleDisplayStart(EmuTime time)
 
 void VDP::scheduleVScan(EmuTime time)
 {
+#ifdef ENABLE_VDP_EVENT_DEBUG
+    vdpDebug("VDP.scheduleVScan: frame=%d time=%llu", frameCount, (long long)getTicksThisFrame(time));
+#endif
 	// Remove pending VSCAN sync point, if any.
 	if (vScanSyncTime > time) {
 		syncVScan.removeSyncPoint();
@@ -517,6 +598,9 @@ void VDP::scheduleVScan(EmuTime time)
 
 void VDP::scheduleHScan(EmuTime time)
 {
+#ifdef ENABLE_VDP_EVENT_DEBUG
+    vdpDebug("VDP.scheduleHScan: frame=%d time=%llu", frameCount, (long long)getTicksThisFrame(time));
+#endif
 	// Remove pending HSCAN sync point, if any.
 	if (hScanSyncTime > time) {
 		syncHScan.removeSyncPoint();
@@ -584,6 +668,9 @@ void VDP::scheduleHScan(EmuTime time)
 void VDP::frameStart(EmuTime time)
 {
 	++frameCount;
+#ifdef ENABLE_VDP_EVENT_DEBUG
+    vdpDebug("VDP.frameStart: frame=%d time=%llu", frameCount, (long long)getTicksThisFrame(time));
+#endif
 
 	// Toggle E/O.
 	// Actually this should occur half a line earlier,
@@ -653,7 +740,9 @@ void VDP::writeIO(uint16_t port, uint8_t value, EmuTime time_)
 	if (fixedVDPIOdelayCycles > 0) {
 		time = cpu.waitCyclesZ80(time, fixedVDPIOdelayCycles);
 	}
-
+#ifdef ENABLE_VDP_EVENT_DEBUG
+    vdpDebug("VDP.writeIO: frame=%d time=%llu", frameCount, (long long)getTicksThisFrame(time));
+#endif
 	assert(isInsideFrame(time));
 	switch (port & (isMSX1VDP() ? 0x01 : 0x03)) {
 	case 0: // VRAM data write
@@ -750,6 +839,9 @@ void VDP::getExtraDeviceInfo(TclObject& result) const
 
 uint8_t VDP::peekRegister(unsigned address, EmuTime time) const
 {
+#ifdef ENABLE_VDP_EVENT_DEBUG
+    vdpDebug("VDP.peekRegister: frame=%d time=%llu address=%04x", frameCount, (long long)getTicksThisFrame(time), address);
+#endif
 	if (address < 0x20) {
 		return controlRegs[address];
 	} else if (address < 0x2F) {
@@ -761,6 +853,9 @@ uint8_t VDP::peekRegister(unsigned address, EmuTime time) const
 
 void VDP::setPalette(unsigned index, uint16_t grb, EmuTime time)
 {
+#ifdef ENABLE_VDP_EVENT_DEBUG
+    vdpDebug("VDP.setPalette: frame=%d time=%llu", frameCount, (long long)getTicksThisFrame(time));
+#endif
 	if (palette[index] != grb) {
 		renderer->updatePalette(index, grb, time);
 		palette[index] = grb;
@@ -769,11 +864,17 @@ void VDP::setPalette(unsigned index, uint16_t grb, EmuTime time)
 
 void VDP::vramWrite(uint8_t value, EmuTime time)
 {
+#ifdef ENABLE_VDP_EVENT_DEBUG
+    vdpDebug("VDP.vramWrite: frame=%d time=%llu", frameCount, (long long)getTicksThisFrame(time));
+#endif
 	scheduleCpuVramAccess(false, value, time);
 }
 
 uint8_t VDP::vramRead(EmuTime time)
 {
+#ifdef ENABLE_VDP_EVENT_DEBUG
+    vdpDebug("VDP.vramRead: frame=%d time=%llu", frameCount, (long long)getTicksThisFrame(time));
+#endif
 	// Return the result from a previous read. In case
 	// allowTooFastAccess==true, the call to scheduleCpuVramAccess()
 	// already overwrites that variable, so make a local copy first.
@@ -786,6 +887,9 @@ uint8_t VDP::vramRead(EmuTime time)
 
 void VDP::scheduleCpuVramAccess(bool isRead, uint8_t write, EmuTime time)
 {
+#ifdef ENABLE_VDP_EVENT_DEBUG
+    vdpDebug("VDP.scheduleCpuVramAccess: frame=%d time=%llu", frameCount, (long long)getTicksThisFrame(time));
+#endif
 	// Tested on real V9938: 'cpuVramData' is shared between read and write.
 	// E.g. OUT (#98),A followed by IN A,(#98) returns the just written value.
 	if (!isRead) cpuVramData = write;
@@ -848,6 +952,9 @@ void VDP::scheduleCpuVramAccess(bool isRead, uint8_t write, EmuTime time)
 
 void VDP::executeCpuVramAccess(EmuTime time)
 {
+#ifdef ENABLE_VDP_EVENT_DEBUG
+    vdpDebug("VDP.executeCpuVramAccess: frame=%d time=%llu", frameCount, (long long)getTicksThisFrame(time));
+#endif
 	int addr = (controlRegs[14] << 14) | vramPointer;
 	if (displayMode.isPlanar()) {
 		// note: also extended VRAM is interleaved,
@@ -889,6 +996,9 @@ void VDP::executeCpuVramAccess(EmuTime time)
 
 EmuTime VDP::getAccessSlot(EmuTime time, VDPAccessSlots::Delta delta) const
 {
+#ifdef ENABLE_VDP_EVENT_DEBUG
+    vdpDebug("VDP.getAccessSlot: frame=%d time=%llu", frameCount, (long long)getTicksThisFrame(time));
+#endif
 	return VDPAccessSlots::getAccessSlot(
 		getFrameStartTime(), time, delta, *this);
 }
@@ -896,12 +1006,18 @@ EmuTime VDP::getAccessSlot(EmuTime time, VDPAccessSlots::Delta delta) const
 VDPAccessSlots::Calculator VDP::getAccessSlotCalculator(
 	EmuTime time, EmuTime limit) const
 {
+#ifdef ENABLE_VDP_EVENT_DEBUG
+    vdpDebug("VDP.getAccessSlotCalculator: frame=%d time=%llu", frameCount, (long long)getTicksThisFrame(time));
+#endif
 	return VDPAccessSlots::getCalculator(
 		getFrameStartTime(), time, limit, *this);
 }
 
 uint8_t VDP::peekStatusReg(uint8_t reg, EmuTime time) const
 {
+#ifdef ENABLE_VDP_EVENT_DEBUG
+    vdpDebug("VDP.peekStatusReg: frame=%d time=%llu", frameCount, (long long)getTicksThisFrame(time));
+#endif
 	switch (reg) {
 	case 0:
 		spriteChecker->sync(time);
@@ -960,6 +1076,9 @@ uint8_t VDP::peekStatusReg(uint8_t reg, EmuTime time) const
 
 uint8_t VDP::readStatusReg(uint8_t reg, EmuTime time)
 {
+#ifdef ENABLE_VDP_EVENT_DEBUG
+    vdpDebug("VDP.readStatusReg: frame=%d time=%llu", frameCount, (long long)getTicksThisFrame(time));
+#endif
 	uint8_t ret = peekStatusReg(reg, time);
 	switch (reg) {
 	case 0:
@@ -989,6 +1108,9 @@ uint8_t VDP::readIO(uint16_t port, EmuTime time_)
 {
 	// See comment in writeIO().
 	EmuTime time = time_;
+#ifdef ENABLE_VDP_EVENT_DEBUG
+    vdpDebug("VDP.readIO: frame=%d time=%llu port=%d", frameCount, (long long)getTicksThisFrame(time), port);
+#endif
 	if (fixedVDPIOdelayCycles > 0) {
 		time = cpu.waitCyclesZ80(time, fixedVDPIOdelayCycles);
 	}
@@ -1013,12 +1135,19 @@ uint8_t VDP::readIO(uint16_t port, EmuTime time_)
 
 uint8_t VDP::peekIO(uint16_t /*port*/, EmuTime /*time*/) const
 {
+#ifdef ENABLE_VDP_EVENT_DEBUG
+    // 'time' parameter is unnamed in this function: use current time.
+    vdpDebug("VDP.peekIO: frame=%d ticks=%lld", frameCount, (long long)getTicksThisFrame(getCurrentTime()));
+#endif
 	// TODO not implemented
 	return 0xFF;
 }
 
 void VDP::changeRegister(uint8_t reg, uint8_t val, EmuTime time)
 {
+#ifdef ENABLE_VDP_EVENT_DEBUG
+    vdpDebug("VDP.changeRegister: frame=%d time=%llu reg=0x%02x val=0x%02x", frameCount, (long long)getTicksThisFrame(time), reg, val);
+#endif
 	if (reg >= 32) {
 		// MXC belongs to CPU interface;
 		// other bits in this register belong to command engine.
@@ -1259,6 +1388,9 @@ void VDP::changeRegister(uint8_t reg, uint8_t val, EmuTime time)
 
 void VDP::syncAtNextLine(SyncBase& type, EmuTime time) const
 {
+#ifdef ENABLE_VDP_EVENT_DEBUG
+    vdpDebug("VDP.syncAtNextLine: frame=%d time=%llu", frameCount, (long long)getTicksThisFrame(time));
+#endif
 	// The processing of a new line starts in the middle of the left erase,
 	// ~144 cycles after the sync signal. Adjust affects it. See issue #1310.
 	int offset = 144 + (horizontalAdjust - 7) * 4;
@@ -1270,6 +1402,9 @@ void VDP::syncAtNextLine(SyncBase& type, EmuTime time) const
 
 void VDP::updateNameBase(EmuTime time)
 {
+#ifdef ENABLE_VDP_EVENT_DEBUG
+    vdpDebug("VDP.updateNameBase: frame=%d time=%llu", frameCount, (long long)getTicksThisFrame(time));
+#endif
 	unsigned base = (controlRegs[2] << 10) | ~(~0u << 10);
 	// TODO:
 	// I reverted this fix.
@@ -1298,6 +1433,9 @@ void VDP::updateNameBase(EmuTime time)
 
 void VDP::updateColorBase(EmuTime time)
 {
+#ifdef ENABLE_VDP_EVENT_DEBUG
+    vdpDebug("VDP.updateColorBase: frame=%d time=%llu", frameCount, (long long)getTicksThisFrame(time));
+#endif
 	unsigned base = (controlRegs[10] << 14) | (controlRegs[3] << 6) | ~(~0u << 6);
 	renderer->updateColorBase(base, time);
 	switch (displayMode.getBase()) {
@@ -1322,6 +1460,9 @@ void VDP::updateColorBase(EmuTime time)
 
 void VDP::updatePatternBase(EmuTime time)
 {
+#ifdef ENABLE_VDP_EVENT_DEBUG
+    vdpDebug("VDP.updatePatternBase: frame=%d time=%llu", frameCount, (long long)getTicksThisFrame(time));
+#endif
 	unsigned base = (controlRegs[4] << 11) | ~(~0u << 11);
 	renderer->updatePatternBase(base, time);
 	switch (displayMode.getBase()) {
@@ -1356,6 +1497,9 @@ void VDP::updatePatternBase(EmuTime time)
 
 void VDP::updateSpriteAttributeBase(EmuTime time)
 {
+#ifdef ENABLE_VDP_EVENT_DEBUG
+    vdpDebug("VDP.updateSpriteAttributeBase: frame=%d time=%llu", frameCount, (long long)getTicksThisFrame(time));
+#endif
 	int mode = displayMode.getSpriteMode(isMSX1VDP());
 	if (mode == 0) {
 		vram->spriteAttribTable.disable(time);
@@ -1372,6 +1516,9 @@ void VDP::updateSpriteAttributeBase(EmuTime time)
 
 void VDP::updateSpritePatternBase(EmuTime time)
 {
+#ifdef ENABLE_VDP_EVENT_DEBUG
+    vdpDebug("VDP.updateSpriteAttributeBase: frame=%d time=%llu", frameCount, (long long)getTicksThisFrame(time));
+#endif
 	if (displayMode.getSpriteMode(isMSX1VDP()) == 0) {
 		vram->spritePatternTable.disable(time);
 		return;
@@ -1387,6 +1534,9 @@ void VDP::updateSpritePatternBase(EmuTime time)
 
 void VDP::updateDisplayMode(DisplayMode newMode, bool cmdBit, EmuTime time)
 {
+#ifdef ENABLE_VDP_EVENT_DEBUG
+    vdpDebug("VDP.updateSpriteAttributeBase: frame=%d time=%llu", frameCount, (long long)getTicksThisFrame(time));
+#endif
 	// Synchronize subsystems.
 	vram->updateDisplayMode(newMode, cmdBit, time);
 
@@ -1600,6 +1750,9 @@ std::array<std::array<uint8_t, 3>, 16> VDP::getMSX1Palette() const
 
 const RawFrame* VDP::getWorkingFrame(EmuTime time)
 {
+#ifdef ENABLE_VDP_EVENT_DEBUG
+    vdpDebug("VDP.RawFrame: frame=%d time=%llu", frameCount, (long long)getTicksThisFrame(time));
+#endif
 	return renderer->getWorkingFrame(time);
 }
 
@@ -1619,12 +1772,19 @@ VDP::RegDebug::RegDebug(const VDP& vdp_)
 uint8_t VDP::RegDebug::read(unsigned address, EmuTime time)
 {
 	const auto& vdp = OUTER(VDP, vdpRegDebug);
+#ifdef ENABLE_VDP_EVENT_DEBUG
+    vdpDebug("VDP.RegDebug.read: frame=%d ticks=%lld", vdp.frameCount, (long long)vdp.getTicksThisFrame(time));
+#endif
+ 	return vdp.peekRegister(address, time);
 	return vdp.peekRegister(address, time);
 }
 
 void VDP::RegDebug::write(unsigned address, uint8_t value, EmuTime time)
 {
 	auto& vdp = OUTER(VDP, vdpRegDebug);
+#ifdef ENABLE_VDP_EVENT_DEBUG
+    vdpDebug("VDP.RegDebug.write: frame=%d ticks=%lld", vdp.frameCount, (long long)vdp.getTicksThisFrame(time));
+#endif
 	// Ignore writes to registers >= 8 on MSX1. An alternative is to only
 	// expose 8 registers. But changing that now breaks backwards
 	// compatibility with some existing scripts. E.g. script that queries
@@ -1645,6 +1805,9 @@ VDP::StatusRegDebug::StatusRegDebug(const VDP& vdp_)
 uint8_t VDP::StatusRegDebug::read(unsigned address, EmuTime time)
 {
 	const auto& vdp = OUTER(VDP, vdpStatusRegDebug);
+#ifdef ENABLE_VDP_EVENT_DEBUG
+    vdpDebug("VDP.StatusRegDebug.read: frame=%d ticks=%lld", vdp.frameCount, (long long)vdp.getTicksThisFrame(time));
+#endif
 	return vdp.peekStatusReg(narrow<uint8_t>(address), time);
 }
 
@@ -1668,6 +1831,9 @@ uint8_t VDP::PaletteDebug::read(unsigned address)
 void VDP::PaletteDebug::write(unsigned address, uint8_t value, EmuTime time)
 {
 	auto& vdp = OUTER(VDP, vdpPaletteDebug);
+#ifdef ENABLE_VDP_EVENT_DEBUG
+    vdpDebug("VDP.PaletteDebug.write: frame=%d ticks=%lld", vdp.frameCount, (long long)vdp.getTicksThisFrame(time));
+#endif
 	// Ignore writes on MSX1. An alternative could be to not expose the
 	// palette at all, but allowing read-only access could be useful for
 	// some scripts.
@@ -1704,6 +1870,11 @@ uint8_t VDP::VRAMPointerDebug::read(unsigned address)
 void VDP::VRAMPointerDebug::write(unsigned address, uint8_t value, EmuTime /*time*/)
 {
 	auto& vdp = OUTER(VDP, vramPointerDebug);
+#ifdef ENABLE_VDP_EVENT_DEBUG
+    vdpDebug("VDP.VRAMPointerDebug.write: frame=%d ticks=%lld",
+             vdp.frameCount,
+             (long long)vdp.getTicksThisFrame(vdp.getCurrentTime()));
+#endif
 	int& ptr = vdp.vramPointer;
 	if (address & 1) {
 		ptr = (ptr & 0x00FF) | ((value & 0x3F) << 8);
@@ -1817,6 +1988,9 @@ VDP::CycleInFrameInfo::CycleInFrameInfo(VDP& vdp_)
 
 int VDP::CycleInFrameInfo::calc(EmuTime time) const
 {
+#ifdef ENABLE_VDP_EVENT_DEBUG
+	vdpDebug("VDP.CycleInFrameInfo.calc: frame=%d ticks=%lld", vdp.frameCount, (long long)vdp.getTicksThisFrame(time));
+#endif
 	return vdp.getTicksThisFrame(time);
 }
 
@@ -1835,6 +2009,9 @@ VDP::LineInFrameInfo::LineInFrameInfo(VDP& vdp_)
 
 int VDP::LineInFrameInfo::calc(EmuTime time) const
 {
+#ifdef ENABLE_VDP_EVENT_DEBUG
+	vdpDebug("VDP.LineInFrameInfo.calc: frame=%d ticks=%lld", vdp.frameCount, (long long)vdp.getTicksThisFrame(time));
+#endif
 	return vdp.getTicksThisFrame(time) / VDP::TICKS_PER_LINE;
 }
 
@@ -1853,6 +2030,9 @@ VDP::CycleInLineInfo::CycleInLineInfo(VDP& vdp_)
 
 int VDP::CycleInLineInfo::calc(EmuTime time) const
 {
+#ifdef ENABLE_VDP_EVENT_DEBUG
+	vdpDebug("VDP.CycleInLineInfo.calc: frame=%d ticks=%lld", vdp.frameCount, (long long)vdp.getTicksThisFrame(time));
+#endif
 	return vdp.getTicksThisFrame(time) % VDP::TICKS_PER_LINE;
 }
 
@@ -1870,6 +2050,9 @@ VDP::MsxYPosInfo::MsxYPosInfo(VDP& vdp_)
 
 int VDP::MsxYPosInfo::calc(EmuTime time) const
 {
+#ifdef ENABLE_VDP_EVENT_DEBUG
+	vdpDebug("VDP.MsxYPosInfo.calc: frame=%d ticks=%lld", vdp.frameCount, (long long)vdp.getTicksThisFrame(time));
+#endif
 	return vdp.getMSXPos(time).y;
 }
 
@@ -1888,6 +2071,9 @@ VDP::MsxX256PosInfo::MsxX256PosInfo(VDP& vdp_)
 
 int VDP::MsxX256PosInfo::calc(EmuTime time) const
 {
+#ifdef ENABLE_VDP_EVENT_DEBUG
+	vdpDebug("VDP.MsxX256PosInfo.calc: frame=%d ticks=%lld", vdp.frameCount, (long long)vdp.getTicksThisFrame(time));
+#endif
 	return vdp.getMSXPos(time).x / 2;
 }
 
@@ -1906,6 +2092,9 @@ VDP::MsxX512PosInfo::MsxX512PosInfo(VDP& vdp_)
 
 int VDP::MsxX512PosInfo::calc(EmuTime time) const
 {
+#ifdef ENABLE_VDP_EVENT_DEBUG
+	vdpDebug("VDP.MsxX512PosInfo.calc: frame=%d ticks=%lld", vdp.frameCount, (long long)vdp.getTicksThisFrame(time));
+#endif
 	return vdp.getMSXPos(time).x;
 }
 
