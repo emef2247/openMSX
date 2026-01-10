@@ -183,6 +183,11 @@ VDP::VDP(const DeviceConfig& config)
 	else if (versionString == "TMS9129") version = TMS9129;
 	else if (versionString == "V9938") version = V9938;
 	else if (versionString == "V9958") version = V9958;
+	else if (versionString == "V9968") {
+		// TangNano / experimental VDP reported as "V9968".
+		// Treat as V9958 for now (compatible subset). Adjust later if needed.
+		version = V9958;
+	}
 	else if (versionString == "YM2220PAL") version = YM2220PAL;
 	else if (versionString == "YM2220NTSC") version = YM2220NTSC;
 	else throw MSXException("Unknown VDP version \"", versionString, '"');
