@@ -403,7 +403,7 @@ void VDP::reset(EmuTime time)
 void VDP::execVSync(EmuTime time)
 {
 #ifdef ENABLE_VDP_EVENT_DEBUG
-    vdpDebug("VDP.execVSync: frame=%d time=%llu", frameCount, (long long)getTicksThisFrame(time));
+    vdpDebug("[VSYNC]VDP.execVSync: frame=%d time=%llu [TESTPATTERN]", frameCount, (long long)getTicksThisFrame(time));
 #endif
 	// This frame is finished.
 	// Inform VDP subcomponents.
@@ -424,11 +424,14 @@ void VDP::execVSync(EmuTime time)
 	// Start next frame.
 	frameStart(time);
 }
-
+// time=0        : frameStart
+// time=57658    : execDisplayStart   (DISPLAY開始)
+// time=320314   : execVScan          (VBLANK開始)
+// time=358416   : execVSync          (VSYNCパルス)
 void VDP::execDisplayStart(EmuTime time)
 {
 #ifdef ENABLE_VDP_EVENT_DEBUG
-    vdpDebug("VDP.execDisplayStart: frame=%d time=%llu", frameCount, (long long)getTicksThisFrame(time));
+    vdpDebug("[DISPLAY][START]VDP.execDisplayStart: frame=%d time=%llu [TESTPATTERN]", frameCount, (long long)getTicksThisFrame(time));
 #endif
 	// Display area starts here, unless we're doing overscan and it
 	// was already active.
@@ -443,7 +446,7 @@ void VDP::execDisplayStart(EmuTime time)
 void VDP::execVScan(EmuTime time)
 {
 #ifdef ENABLE_VDP_EVENT_DEBUG
-    vdpDebug("VDP.execVScan: frame=%d time=%llu", frameCount, (long long)getTicksThisFrame(time));
+    vdpDebug("[VBLANK]VDP.execVScan: frame=%d time=%llu [TESTPATTERN]", frameCount, (long long)getTicksThisFrame(time));
 #endif
 	// VSCAN is the end of display.
 	// This will generate a VBLANK IRQ. Typically MSX software will
@@ -541,7 +544,7 @@ void VDP::execSyncCmdDone(EmuTime time)
 void VDP::scheduleDisplayStart(EmuTime time)
 {
 #ifdef ENABLE_VDP_EVENT_DEBUG
-    vdpDebug("VDP.scheduleDisplayStart: frame=%d time=%llu", frameCount, (long long)getTicksThisFrame(time));
+    vdpDebug("[DISPLAY][RESET]VDP.scheduleDisplayStart: frame=%d time=%llu [TESTPATTERN]", frameCount, (long long)getTicksThisFrame(time));
 #endif
 	// Remove pending DISPLAY_START sync point, if any.
 	if (displayStartSyncTime > time) {
@@ -669,7 +672,7 @@ void VDP::frameStart(EmuTime time)
 {
 	++frameCount;
 #ifdef ENABLE_VDP_EVENT_DEBUG
-    vdpDebug("VDP.frameStart: frame=%d time=%llu", frameCount, (long long)getTicksThisFrame(time));
+    vdpDebug("VDP.frameStart: frame=%d time=%llu ", frameCount, (long long)getTicksThisFrame(time));
 #endif
 
 	// Toggle E/O.
@@ -741,7 +744,7 @@ void VDP::writeIO(uint16_t port, uint8_t value, EmuTime time_)
 		time = cpu.waitCyclesZ80(time, fixedVDPIOdelayCycles);
 	}
 #ifdef ENABLE_VDP_EVENT_DEBUG
-    vdpDebug("VDP.writeIO: frame=%d time=%llu", frameCount, (long long)getTicksThisFrame(time));
+    vdpDebug("[IO]VDP.writeIO: frame=%d time=%llu port=0x%02x value=0x%02x [TESTPATTERN]", frameCount, (long long)getTicksThisFrame(time), port, value);
 #endif
 	assert(isInsideFrame(time));
 	switch (port & (isMSX1VDP() ? 0x01 : 0x03)) {
@@ -840,7 +843,7 @@ void VDP::getExtraDeviceInfo(TclObject& result) const
 uint8_t VDP::peekRegister(unsigned address, EmuTime time) const
 {
 #ifdef ENABLE_VDP_EVENT_DEBUG
-    vdpDebug("VDP.peekRegister: frame=%d time=%llu address=%04x", frameCount, (long long)getTicksThisFrame(time), address);
+    vdpDebug("VDP.peekRegister: frame=%d time=%llu address=0x%02x", frameCount, (long long)getTicksThisFrame(time), address);
 #endif
 	if (address < 0x20) {
 		return controlRegs[address];
@@ -865,7 +868,7 @@ void VDP::setPalette(unsigned index, uint16_t grb, EmuTime time)
 void VDP::vramWrite(uint8_t value, EmuTime time)
 {
 #ifdef ENABLE_VDP_EVENT_DEBUG
-    vdpDebug("VDP.vramWrite: frame=%d time=%llu", frameCount, (long long)getTicksThisFrame(time));
+    vdpDebug("[VRAM]VDP.vramWrite: frame=%d time=%llu value=0x%02x [TESTPATTERN]", frameCount, (long long)getTicksThisFrame(time), value);
 #endif
 	scheduleCpuVramAccess(false, value, time);
 }
@@ -888,7 +891,7 @@ uint8_t VDP::vramRead(EmuTime time)
 void VDP::scheduleCpuVramAccess(bool isRead, uint8_t write, EmuTime time)
 {
 #ifdef ENABLE_VDP_EVENT_DEBUG
-    vdpDebug("VDP.scheduleCpuVramAccess: frame=%d time=%llu", frameCount, (long long)getTicksThisFrame(time));
+    vdpDebug("VDP.scheduleCpuVramAccess: frame=%d time=%llu isRead=%d, write=0x%02x", frameCount, (long long)getTicksThisFrame(time), isRead, write);
 #endif
 	// Tested on real V9938: 'cpuVramData' is shared between read and write.
 	// E.g. OUT (#98),A followed by IN A,(#98) returns the just written value.
@@ -979,12 +982,18 @@ void VDP::executeCpuVramAccess(EmuTime time)
 		} else {
 			vram->cpuWrite(addr, cpuVramData, time);
 		}
+	#ifdef ENABLE_VDP_EVENT_DEBUG
+		vdpDebug("VDP.executeCpuVramAccess: frame=%d time=%llu cpuVramReqIsRead=%d addr=0x%02x cpuVramData=0x%02x", frameCount, (long long)getTicksThisFrame(time), cpuVramReqIsRead, addr, cpuVramData);
+	#endif
 	} else {
 		if (cpuVramReqIsRead) {
 			cpuVramData = 0xFF;
 		} else {
 			// nothing
 		}
+	#ifdef ENABLE_VDP_EVENT_DEBUG
+		vdpDebug("VDP.executeCpuVramAccess: frame=%d time=%llu cpuVramReqIsRead=%d addr=0x%02x cpuVramData=0x%02x", frameCount, (long long)getTicksThisFrame(time), cpuVramReqIsRead, addr, cpuVramData);
+	#endif
 	}
 
 	vramPointer = (vramPointer + 1) & 0x3FFF;
@@ -1016,7 +1025,7 @@ VDPAccessSlots::Calculator VDP::getAccessSlotCalculator(
 uint8_t VDP::peekStatusReg(uint8_t reg, EmuTime time) const
 {
 #ifdef ENABLE_VDP_EVENT_DEBUG
-    vdpDebug("VDP.peekStatusReg: frame=%d time=%llu", frameCount, (long long)getTicksThisFrame(time));
+    vdpDebug("VDP.peekStatusReg: frame=%d time=%llu reg=0x%02x", frameCount, (long long)getTicksThisFrame(time), reg);
 #endif
 	switch (reg) {
 	case 0:
@@ -1076,9 +1085,6 @@ uint8_t VDP::peekStatusReg(uint8_t reg, EmuTime time) const
 
 uint8_t VDP::readStatusReg(uint8_t reg, EmuTime time)
 {
-#ifdef ENABLE_VDP_EVENT_DEBUG
-    vdpDebug("VDP.readStatusReg: frame=%d time=%llu", frameCount, (long long)getTicksThisFrame(time));
-#endif
 	uint8_t ret = peekStatusReg(reg, time);
 	switch (reg) {
 	case 0:
@@ -1101,6 +1107,9 @@ uint8_t VDP::readStatusReg(uint8_t reg, EmuTime time)
 		cmdEngine->resetBD();
 		break;
 	}
+#ifdef ENABLE_VDP_EVENT_DEBUG
+	vdpDebug("VDP.readStatusReg: frame=%d time=%llu reg=0x%02x ret=0x%02x", frameCount, (long long)getTicksThisFrame(time), reg, ret);
+#endif
 	return ret;
 }
 
@@ -1146,7 +1155,7 @@ uint8_t VDP::peekIO(uint16_t /*port*/, EmuTime /*time*/) const
 void VDP::changeRegister(uint8_t reg, uint8_t val, EmuTime time)
 {
 #ifdef ENABLE_VDP_EVENT_DEBUG
-    vdpDebug("VDP.changeRegister: frame=%d time=%llu reg=0x%02x val=0x%02x", frameCount, (long long)getTicksThisFrame(time), reg, val);
+    vdpDebug("[INFO]VDP.changeRegister: frame=%d time=%llu reg=0x%02x val=0x%02x [TESTPATTERN]", frameCount, (long long)getTicksThisFrame(time), reg, val);
 #endif
 	if (reg >= 32) {
 		// MXC belongs to CPU interface;
@@ -1773,7 +1782,7 @@ uint8_t VDP::RegDebug::read(unsigned address, EmuTime time)
 {
 	const auto& vdp = OUTER(VDP, vdpRegDebug);
 #ifdef ENABLE_VDP_EVENT_DEBUG
-    vdpDebug("VDP.RegDebug.read: frame=%d ticks=%lld", vdp.frameCount, (long long)vdp.getTicksThisFrame(time));
+    vdpDebug("VDP.RegDebug.read: frame=%d ticks=%lld address=0x%02x", vdp.frameCount, (long long)vdp.getTicksThisFrame(time), address);
 #endif
  	return vdp.peekRegister(address, time);
 	return vdp.peekRegister(address, time);
@@ -1783,7 +1792,7 @@ void VDP::RegDebug::write(unsigned address, uint8_t value, EmuTime time)
 {
 	auto& vdp = OUTER(VDP, vdpRegDebug);
 #ifdef ENABLE_VDP_EVENT_DEBUG
-    vdpDebug("VDP.RegDebug.write: frame=%d ticks=%lld", vdp.frameCount, (long long)vdp.getTicksThisFrame(time));
+    vdpDebug("VDP.RegDebug.write: frame=%d ticks=%lld address=0x%02x, value=0x%02x", vdp.frameCount, (long long)vdp.getTicksThisFrame(time), address, value);
 #endif
 	// Ignore writes to registers >= 8 on MSX1. An alternative is to only
 	// expose 8 registers. But changing that now breaks backwards
@@ -1806,7 +1815,7 @@ uint8_t VDP::StatusRegDebug::read(unsigned address, EmuTime time)
 {
 	const auto& vdp = OUTER(VDP, vdpStatusRegDebug);
 #ifdef ENABLE_VDP_EVENT_DEBUG
-    vdpDebug("VDP.StatusRegDebug.read: frame=%d ticks=%lld", vdp.frameCount, (long long)vdp.getTicksThisFrame(time));
+    vdpDebug("VDP.StatusRegDebug.read: frame=%d ticks=%lld address=0x%02x", vdp.frameCount, (long long)vdp.getTicksThisFrame(time), address);
 #endif
 	return vdp.peekStatusReg(narrow<uint8_t>(address), time);
 }
@@ -1832,7 +1841,7 @@ void VDP::PaletteDebug::write(unsigned address, uint8_t value, EmuTime time)
 {
 	auto& vdp = OUTER(VDP, vdpPaletteDebug);
 #ifdef ENABLE_VDP_EVENT_DEBUG
-    vdpDebug("VDP.PaletteDebug.write: frame=%d ticks=%lld", vdp.frameCount, (long long)vdp.getTicksThisFrame(time));
+    vdpDebug("VDP.PaletteDebug.write: frame=%d ticks=%lld address=0x%02x value=0x%02x", vdp.frameCount, (long long)vdp.getTicksThisFrame(time), address, value);
 #endif
 	// Ignore writes on MSX1. An alternative could be to not expose the
 	// palette at all, but allowing read-only access could be useful for
@@ -1871,9 +1880,9 @@ void VDP::VRAMPointerDebug::write(unsigned address, uint8_t value, EmuTime /*tim
 {
 	auto& vdp = OUTER(VDP, vramPointerDebug);
 #ifdef ENABLE_VDP_EVENT_DEBUG
-    vdpDebug("VDP.VRAMPointerDebug.write: frame=%d ticks=%lld",
+    vdpDebug("VDP.VRAMPointerDebug.write: frame=%d ticks=%lld address=0x%02x value=0x%02x",
              vdp.frameCount,
-             (long long)vdp.getTicksThisFrame(vdp.getCurrentTime()));
+             (long long)vdp.getTicksThisFrame(vdp.getCurrentTime()),address , value);
 #endif
 	int& ptr = vdp.vramPointer;
 	if (address & 1) {
