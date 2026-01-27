@@ -1,68 +1,60 @@
 #include "TangNanoVdpDevice.hh"
 
-#include "DeviceConfig.hh"
-#include "narrow.hh"
+#include <algorithm>
 
 namespace openmsx {
 
-TangNanoVdpDevice::TangNanoVdpDevice(const DeviceConfig& config)
-	: MSXDevice(config)
-{
-	// 実際の初期化は powerUp() / reset() で行う
-}
+static constexpr unsigned WIDTH  = 256;
+static constexpr unsigned HEIGHT = 212;
 
-TangNanoVdpDevice::~TangNanoVdpDevice()
+TangNanoVdpDevice::TangNanoVdpDevice(const DeviceConfig& config)
+    : MSXDevice(config)
+    , FrameSource()
 {
-	vdp.powerOff();
+    FrameSource::init(FieldType::NONINTERLACED);
 }
 
 void TangNanoVdpDevice::powerUp(EmuTime time)
 {
-	lastSyncTime = time;
-	vdp.powerOn();
-	vdp.reset();
-}
-
-void TangNanoVdpDevice::powerDown(EmuTime /*time*/)
-{
-	vdp.powerOff();
+    lastTime = time;
 }
 
 void TangNanoVdpDevice::reset(EmuTime time)
 {
-	lastSyncTime = time;
-	vdp.reset();
+    lastTime = time;
 }
 
-void TangNanoVdpDevice::syncTo(EmuTime time)
+void TangNanoVdpDevice::writeIO(uint16_t, byte, EmuTime time)
 {
-	// とりあえずの雛形:
-	// time が進んでいれば 1 サイクルだけ進める。
-	// 後で VDP.cc のタイミング実装を参考に、CPU クロックと
-	// VDP クロックの比からステップ数を決める予定。
-
-	if (time <= lastSyncTime) return;
-
-	vdp.stepCycles(1);
-	lastSyncTime = time;
+    lastTime = time;
 }
 
-void TangNanoVdpDevice::writeIO(uint16_t port, byte value, EmuTime time)
+byte TangNanoVdpDevice::readIO(uint16_t, EmuTime time)
 {
-	syncTo(time);
-
-	// TangNano 側はスロットバスの 8bit アドレスを見ているので、
-	// ここではポート番号の下位 8bit をそのまま渡す。
-	const auto addr8 = narrow_cast<uint16_t>(port & 0xFF);
-	vdp.writeIO(addr8, value);
+    lastTime = time;
+    return 0xFF;
 }
 
-byte TangNanoVdpDevice::readIO(uint16_t /*port*/, EmuTime /*time*/)
+/* ===== FrameSource ===== */
+
+unsigned TangNanoVdpDevice::getLineWidth(unsigned) const
 {
-	// 現時点では read をサポートしていないので、未接続バスとして 0xFF
-	return 0xFF;
+    return WIDTH;
+}
+
+std::span<const unsigned int>
+TangNanoVdpDevice::getUnscaledLine(
+    unsigned /*line*/,
+    std::span<unsigned int> workBuffer) const
+{
+    std::fill(
+        workBuffer.begin(),
+        workBuffer.begin() + WIDTH,
+        0x00000000u); // 黒
+
+    return workBuffer.subspan(0, WIDTH);
 }
 
 REGISTER_MSXDEVICE(TangNanoVdpDevice, "TangNanoVdpDevice");
-} // namespace openmsx
 
+} // namespace openmsx
