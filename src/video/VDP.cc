@@ -185,6 +185,7 @@ VDP::VDP(const DeviceConfig& config)
 	else if (versionString == "V9958") version = V9958;
 	else if (versionString == "YM2220PAL") version = YM2220PAL;
 	else if (versionString == "YM2220NTSC") version = YM2220NTSC;
+	else if (versionString == "IODisabled") version = IODisabled;
 	else throw MSXException("Unknown VDP version \"", versionString, '"');
 
 	// saturation parameters only make sense when using TMS VDPs

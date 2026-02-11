@@ -772,6 +772,12 @@ public:
 	template<typename Archive>
 	void serialize(Archive& ar, unsigned version);
 
+    bool hasIO() {
+		if (version == IODisabled) 
+			return false;
+		
+		return true;
+	};
 private:
 	void initTables();
 
@@ -784,6 +790,7 @@ private:
 	static constexpr unsigned VM_TOSHIBA_PALETTE  =  32; // set-> has Toshiba palette
 	static constexpr unsigned VM_YJK              =  64; // set-> has YJK (MSX2+)
 	static constexpr unsigned VM_YM2220_PALETTE   = 128; // set-> has YM2220 palette
+	static constexpr unsigned VM_IO_DISABLE		  = 0xFF;// set-> IOs are not mapped 
 
 	/** VDP version: the VDP model being emulated. */
 	enum VdpVersion : uint8_t {
@@ -825,6 +832,8 @@ private:
 
 		/** MSX2+ and turbo R VDP. */
 		V9958      = VM_YJK,
+		
+		IODisabled = VM_IO_DISABLE,
 	};
 
 	struct SyncBase : public Schedulable {

@@ -40,6 +40,11 @@ void MSXMatsushita::init()
 		// machines actually exist.
 		return;
 	}
+	
+    if (!vdp->hasIO()) {
+		return;
+	}
+
 
 	// Wrap the VDP ports.
 	auto& cpuInterface = getCPUInterface();
