@@ -24,6 +24,7 @@ TODO:
 #include "Renderer.hh"
 #include "RendererFactory.hh"
 #include "SpriteChecker.hh"
+#include "V9968VerilatorDevice.hh"
 #include "VDPCmdEngine.hh"
 #include "VDPVRAM.hh"
 
@@ -252,6 +253,11 @@ VDP::VDP(const DeviceConfig& config)
 	// Reset state.
 	powerUp(time);
 
+	// V9968 Verilator integration
+	if (version == IODisabled) {
+		v9968Verilator_ = std::make_unique<V9968VerilatorDevice>(*this);
+	}
+
 	display      .attach(*this);
 	cmdTiming    .attach(*this);
 	tooFastAccess.attach(*this);
@@ -409,6 +415,10 @@ void VDP::execVSync(EmuTime time)
 	// This frame is finished.
 	// Inform VDP subcomponents.
 	// TODO: Do this via VDPVRAM?
+	// [V9968 Verilator] push rendered frame before openMSX's own frameEnd
+	if (v9968Verilator_) {
+		v9968Verilator_->onVSync(time);
+	}
 	renderer->frameEnd(time);
 	spriteChecker->frameEnd(time);
 
@@ -747,6 +757,11 @@ void VDP::writeIO(uint16_t port, uint8_t value, EmuTime time_)
 #ifdef ENABLE_VDP_EVENT_DEBUG
     vdpDebug("[IO]VDP.writeIO: frame=%d time=%llu port=0x%02x value=0x%02x [TESTPATTERN]", frameCount, (long long)getTicksThisFrame(time), port, value);
 #endif
+	// [V9968 Verilator] forward IO write
+	if (v9968Verilator_) {
+		v9968Verilator_->onWriteIO(port, value, time);
+		return; // IODisabled: no further processing
+	}
 	assert(isInsideFrame(time));
 	switch (port & (isMSX1VDP() ? 0x01 : 0x03)) {
 	case 0: // VRAM data write
@@ -1125,6 +1140,10 @@ uint8_t VDP::readIO(uint16_t port, EmuTime time_)
 		time = cpu.waitCyclesZ80(time, fixedVDPIOdelayCycles);
 	}
 
+	// [V9968 Verilator] forward IO read
+	if (v9968Verilator_) {
+		return v9968Verilator_->onReadIO(port, time);
+	}
 	assert(isInsideFrame(time));
 
 	registerDataStored = false; // Abort any port #1 writes in progress.

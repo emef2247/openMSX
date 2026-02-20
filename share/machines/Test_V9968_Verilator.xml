@@ -1,0 +1,72 @@
+<?xml version="1.0" ?>
+<!DOCTYPE msxconfig SYSTEM 'msxconfig2.dtd'>
+<msxconfig>
+
+  <info>
+    <manufacturer>openMSX Team</manufacturer>
+    <code>Test_V9968_Verilator</code>
+    <release_year>2025</release_year>
+    <description>Test machine for V9968 Verilator integration (Phase 1 stub).
+The VDP is configured with version=IODisabled so that the V9968VerilatorDevice
+stub renders gradient frames via the PostProcessor pipeline.</description>
+    <type>MSX2</type>
+    <region>jp</region>
+  </info>
+
+  <CassettePort/>
+
+  <devices>
+
+    <PPI id="ppi">
+      <sound>
+        <volume>16000</volume>
+      </sound>
+      <io base="0xA8" num="4"/>
+      <keyboard_type>jp_jis</keyboard_type>
+      <has_keypad>true</has_keypad>
+      <key_ghosting_sgc_protected>false</key_ghosting_sgc_protected>
+      <code_kana_locks>true</code_kana_locks>
+      <graph_locks>false</graph_locks>
+    </PPI>
+
+    <VDP id="VDP">
+      <version>IODisabled</version>
+      <vram>128</vram>
+      <io base="0x98" num="4" type="O"/>
+      <io base="0x98" num="2" type="I"/>
+    </VDP>
+
+    <PSG id="PSG">
+      <keyboardlayout>JIS</keyboardlayout>
+      <sound>
+        <volume>21000</volume>
+      </sound>
+      <io base="0xA0" num="4" type="IO"/>
+    </PSG>
+
+    <primary slot="0">
+      <ROM id="MSX BIOS with BASIC ROM">
+        <mem base="0x0000" size="0x8000"/>
+        <rom>
+          <filename>msx2.rom</filename>
+          <!-- Replace with the actual SHA1 of your msx2.rom file -->
+        </rom>
+      </ROM>
+    </primary>
+
+    <primary slot="1" external="true"/>
+
+    <primary slot="2" external="true"/>
+
+    <primary slot="3">
+      <secondary slot="0">
+        <MemoryMapper id="Main RAM">
+          <size>64</size>
+          <mem base="0x0000" size="0x10000"/>
+        </MemoryMapper>
+      </secondary>
+    </primary>
+
+  </devices>
+
+</msxconfig>

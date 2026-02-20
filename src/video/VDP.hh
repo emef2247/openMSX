@@ -26,6 +26,7 @@ namespace openmsx {
 
 class PostProcessor;
 class Renderer;
+class V9968VerilatorDevice;
 class VDPCmdEngine;
 class VDPVRAM;
 class MSXCPU;
@@ -106,6 +107,10 @@ public:
 	 * over the lifetime of the VDP object (on renderer switch).
 	 */
 	[[nodiscard]] PostProcessor* getPostProcessor() const;
+
+	[[nodiscard]] V9968VerilatorDevice* getV9968Verilator() const {
+		return v9968Verilator_.get();
+	}
 
 	/** Is this an MSX1 VDP?
 	  * @return True if this is an MSX1 VDP
@@ -1398,6 +1403,9 @@ private:
 	/** Cached CPU reference */
 	MSXCPU& cpu;
 	const uint8_t fixedVDPIOdelayCycles;
+
+	/** V9968 Verilator integration (only active when version==IODisabled). */
+	std::unique_ptr<V9968VerilatorDevice> v9968Verilator_;
 };
 SERIALIZE_CLASS_VERSION(VDP, 10);
 
