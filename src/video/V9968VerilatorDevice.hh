@@ -32,6 +32,10 @@ public:
 	void onVSync(EmuTime time);
 
 private:
+	// Frame dimensions (matching MSX2 SCREEN5)
+	static constexpr unsigned FRAME_WIDTH  = 256;
+	static constexpr unsigned FRAME_HEIGHT = 212;
+
 	void renderStubFrame(RawFrame& frame);
 
 	VDP& vdp_;
