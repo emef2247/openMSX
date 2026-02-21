@@ -7,9 +7,9 @@
     <code>Test_V9968_Verilator</code>
     <release_year>2025</release_year>
     <description>Test machine for V9968 Verilator integration (Phase 2).
-The VDP is configured as V9958. The V9968Verilator extension is loaded
-automatically so that V9968VerilatorDevice is registered as a proper
-openMSX device via DeviceFactory.</description>
+The VDP is configured with version=V9958. V9968VerilatorDevice runs alongside
+the standard V9958 renderer. Switch the video source to 'V9968Verilator' in
+the openMSX console to see the gradient test pattern from the Verilator stub.</description>
     <type>MSX2</type>
     <region>jp</region>
   </info>
@@ -31,7 +31,7 @@ openMSX device via DeviceFactory.</description>
     </PPI>
 
     <VDP id="VDP">
-      <version>V9958</version>
+      <version>V9968Verilator</version>
       <vram>128</vram>
       <io base="0x98" num="4" type="O"/>
       <io base="0x98" num="2" type="I"/>

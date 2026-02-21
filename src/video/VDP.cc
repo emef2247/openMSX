@@ -186,6 +186,7 @@ VDP::VDP(const DeviceConfig& config)
 	else if (versionString == "YM2220PAL") version = YM2220PAL;
 	else if (versionString == "YM2220NTSC") version = YM2220NTSC;
 	else if (versionString == "IODisabled") version = IODisabled;
+	else if (versionString == "V9968Verilator") version = IODisabled;
 	else throw MSXException("Unknown VDP version \"", versionString, '"');
 
 	// saturation parameters only make sense when using TMS VDPs
@@ -231,7 +232,7 @@ VDP::VDP(const DeviceConfig& config)
 	EmuTime time = getCurrentTime();
 	unsigned vramSize =
 		(isMSX1VDP() ? 16 : config.getChildDataAsInt("vram", 0));
-	if (vramSize != one_of(16u, 64u, 128u, 192u)) {
+	if (vramSize != one_of(16u, 64u, 128u, 192u, 256u)) {
 		throw MSXException(
 			"VRAM size of ", vramSize, "kB is not supported!");
 	}
@@ -252,6 +253,12 @@ VDP::VDP(const DeviceConfig& config)
 	// Reset state.
 	powerUp(time);
 
+	// V9968 Verilator integration
+	if (version == V9958 || version == V9938 || version == IODisabled) {
+		v9968Verilator_ = std::make_unique<V9968VerilatorDevice>(*this);
+		v9968Verilator_->initPostProcessor();
+	}
+
 	display      .attach(*this);
 	cmdTiming    .attach(*this);
 	tooFastAccess.attach(*this);
@@ -267,6 +274,9 @@ VDP::~VDP()
 
 void VDP::preVideoSystemChange() noexcept
 {
+	if (v9968Verilator_) {
+		v9968Verilator_->resetPostProcessor();
+	}
 	renderer.reset();
 }
 
@@ -282,6 +292,9 @@ void VDP::createRenderer()
 	//       which is most likely in the past?
 	//renderer->reset(frameStartTime.getTime());
 	vram->setRenderer(renderer.get(), frameStartTime.getTime());
+	if (v9968Verilator_) {
+		v9968Verilator_->initPostProcessor();
+	}
 }
 
 PostProcessor* VDP::getPostProcessor() const
@@ -747,7 +760,10 @@ void VDP::writeIO(uint16_t port, uint8_t value, EmuTime time_)
 #ifdef ENABLE_VDP_EVENT_DEBUG
     vdpDebug("[IO]VDP.writeIO: frame=%d time=%llu port=0x%02x value=0x%02x [TESTPATTERN]", frameCount, (long long)getTicksThisFrame(time), port, value);
 #endif
-	// [V9968 Verilator] forward IO write - removed (now handled by V9968VerilatorDevice MSXDevice)
+	// [V9968 Verilator] broadcast IO write (V9958 processing continues below)
+	if (v9968Verilator_) {
+		v9968Verilator_->onWriteIO(port, value, time);
+	}
 	assert(isInsideFrame(time));
 	switch (port & (isMSX1VDP() ? 0x01 : 0x03)) {
 	case 0: // VRAM data write
@@ -1126,7 +1142,10 @@ uint8_t VDP::readIO(uint16_t port, EmuTime time_)
 		time = cpu.waitCyclesZ80(time, fixedVDPIOdelayCycles);
 	}
 
-	// [V9968 Verilator] forward IO read - removed (now handled by V9968VerilatorDevice MSXDevice)
+	// [V9968 Verilator] broadcast IO read notification (V9958 processing continues below)
+	if (v9968Verilator_) {
+		v9968Verilator_->onReadIO(port, time);
+	}
 	assert(isInsideFrame(time));
 
 	registerDataStored = false; // Abort any port #1 writes in progress.

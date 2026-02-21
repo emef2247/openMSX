@@ -1,8 +1,12 @@
 #include "V9968VerilatorDevice.hh"
 
-#include "DeviceConfig.hh"
+#include "VDP.hh"
+#include "Display.hh"
+#include "MSXMotherBoard.hh"
+#include "OutputSurface.hh"
+#include "PostProcessor.hh"
 #include "RawFrame.hh"
-#include "serialize.hh"
+#include "VideoLayer.hh"
 
 #include <cstdarg>
 #include <cstdio>
@@ -57,6 +61,32 @@ void V9968VerilatorDevice::reset(EmuTime /*time*/)
 }
 
 // ---------------------------------------------------------------------------
+// PostProcessor lifecycle
+// ---------------------------------------------------------------------------
+
+void V9968VerilatorDevice::initPostProcessor()
+{
+	Display& display = vdp_.getDisplay();
+	OutputSurface* screen = display.getOutputSurface();
+	if (!screen) {
+		verlDebug("[VERL] initPostProcessor: no OutputSurface (DummyRenderer?), skipping");
+		postProcessor_.reset();
+		return;
+	}
+	MSXMotherBoard& mb = vdp_.getMotherBoard();
+	postProcessor_ = std::make_unique<PostProcessor>(
+		mb, display, *screen,
+		"V9968Verilator", FRAME_WIDTH, FRAME_HEIGHT, false);
+	verlDebug("[VERL] initPostProcessor: PostProcessor created for 'V9968Verilator'");
+}
+
+void V9968VerilatorDevice::resetPostProcessor()
+{
+	verlDebug("[VERL] resetPostProcessor: releasing PostProcessor");
+	postProcessor_.reset();
+}
+
+// ---------------------------------------------------------------------------
 // IO hooks
 // ---------------------------------------------------------------------------
 
@@ -66,15 +96,73 @@ void V9968VerilatorDevice::writeIO(uint16_t port, uint8_t value, EmuTime /*time*
 	          (unsigned)port, (unsigned)value, frameCount_);
 }
 
-uint8_t V9968VerilatorDevice::readIO(uint16_t port, EmuTime /*time*/)
+void V9968VerilatorDevice::onReadIO(uint16_t port, EmuTime /*time*/)
 {
 	verlDebug("[VERL] readIO  port=0x%02x frame=%u",
 	          (unsigned)port, frameCount_);
-	return 0xFF;
 }
 
 // ---------------------------------------------------------------------------
-// Stub frame renderer: simple RGB gradient (reserved for future VSYNC hook)
+// VSYNC hook – render stub frame and hand it to dedicated PostProcessor
+// ---------------------------------------------------------------------------
+
+void V9968VerilatorDevice::onVSync(EmuTime time)
+{
+	verlDebug("[VERL] onVSync frame=%u", frameCount_);
+
+	PostProcessor* pp = postProcessor_.get();
+	if (!pp) {
+		verlDebug("[VERL] onVSync: PostProcessor is null, skipping");
+		return;
+	}
+
+	if (!workFrame_) {
+		verlDebug("[VERL] onVSync: workFrame_ is null, reallocating");
+		workFrame_ = std::make_unique<RawFrame>(FRAME_WIDTH, FRAME_HEIGHT);
+		workFrame_->init(RawFrame::FieldType::NONINTERLACED);
+	}
+
+	// Validate frame dimensions before rendering
+	if (workFrame_->getHeight() != FRAME_HEIGHT) {
+		verlDebug("[VERL] onVSync: frame height mismatch (got %u, expected %u), reallocating",
+		          workFrame_->getHeight(), FRAME_HEIGHT);
+		workFrame_ = std::make_unique<RawFrame>(FRAME_WIDTH, FRAME_HEIGHT);
+		workFrame_->init(RawFrame::FieldType::NONINTERLACED);
+	}
+
+	renderStubFrame(*workFrame_);
+
+	verlDebug("[VERL] onVSync: calling rotateFrames frame=%u", frameCount_);
+	workFrame_ = pp->rotateFrames(std::move(workFrame_), time);
+
+	// rotateFrames may return a frame of a different size; re-validate
+	if (!workFrame_) {
+		verlDebug("[VERL] onVSync: rotateFrames returned null, reallocating");
+		workFrame_ = std::make_unique<RawFrame>(FRAME_WIDTH, FRAME_HEIGHT);
+	}
+	if (workFrame_->getHeight() != FRAME_HEIGHT) {
+		verlDebug("[VERL] onVSync: post-rotate height mismatch (%u), reallocating",
+		          workFrame_->getHeight());
+		workFrame_ = std::make_unique<RawFrame>(FRAME_WIDTH, FRAME_HEIGHT);
+	}
+	workFrame_->init(RawFrame::FieldType::NONINTERLACED);
+
+	++frameCount_;
+}
+
+// ---------------------------------------------------------------------------
+// Primary source query
+// ---------------------------------------------------------------------------
+
+bool V9968VerilatorDevice::isPrimary() const
+{
+	if (!postProcessor_) return false;
+	return postProcessor_->getVideoSource() ==
+	       postProcessor_->getVideoSourceSetting();
+}
+
+// ---------------------------------------------------------------------------
+// Stub frame renderer: simple RGB gradient
 // ---------------------------------------------------------------------------
 
 void V9968VerilatorDevice::renderStubFrame(RawFrame& frame)
