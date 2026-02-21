@@ -1,8 +1,12 @@
 #include "V9968VerilatorDevice.hh"
 
 #include "VDP.hh"
+#include "Display.hh"
+#include "MSXMotherBoard.hh"
+#include "OutputSurface.hh"
 #include "PostProcessor.hh"
 #include "RawFrame.hh"
+#include "VideoLayer.hh"
 
 #include <cstdarg>
 #include <cstdio>
@@ -58,6 +62,32 @@ V9968VerilatorDevice::~V9968VerilatorDevice()
 }
 
 // ---------------------------------------------------------------------------
+// PostProcessor lifecycle
+// ---------------------------------------------------------------------------
+
+void V9968VerilatorDevice::initPostProcessor()
+{
+	Display& display = vdp_.getDisplay();
+	OutputSurface* screen = display.getOutputSurface();
+	if (!screen) {
+		verlDebug("[VERL] initPostProcessor: no OutputSurface (DummyRenderer?), skipping");
+		postProcessor_.reset();
+		return;
+	}
+	MSXMotherBoard& mb = vdp_.getMotherBoard();
+	postProcessor_ = std::make_unique<PostProcessor>(
+		mb, display, *screen,
+		"V9968Verilator", FRAME_WIDTH, FRAME_HEIGHT, false);
+	verlDebug("[VERL] initPostProcessor: PostProcessor created for 'V9968Verilator'");
+}
+
+void V9968VerilatorDevice::resetPostProcessor()
+{
+	verlDebug("[VERL] resetPostProcessor: releasing PostProcessor");
+	postProcessor_.reset();
+}
+
+// ---------------------------------------------------------------------------
 // IO hooks
 // ---------------------------------------------------------------------------
 
@@ -67,22 +97,21 @@ void V9968VerilatorDevice::onWriteIO(uint16_t port, uint8_t value, EmuTime /*tim
 	          (unsigned)port, (unsigned)value, frameCount_);
 }
 
-uint8_t V9968VerilatorDevice::onReadIO(uint16_t port, EmuTime /*time*/)
+void V9968VerilatorDevice::onReadIO(uint16_t port, EmuTime /*time*/)
 {
 	verlDebug("[VERL] readIO  port=0x%02x frame=%u",
 	          (unsigned)port, frameCount_);
-	return 0xFF;
 }
 
 // ---------------------------------------------------------------------------
-// VSYNC hook – render stub frame and hand it to PostProcessor
+// VSYNC hook – render stub frame and hand it to dedicated PostProcessor
 // ---------------------------------------------------------------------------
 
 void V9968VerilatorDevice::onVSync(EmuTime time)
 {
 	verlDebug("[VERL] onVSync frame=%u", frameCount_);
 
-	PostProcessor* pp = vdp_.getPostProcessor();
+	PostProcessor* pp = postProcessor_.get();
 	if (!pp) {
 		verlDebug("[VERL] onVSync: PostProcessor is null, skipping");
 		return;
@@ -120,6 +149,17 @@ void V9968VerilatorDevice::onVSync(EmuTime time)
 	workFrame_->init(RawFrame::FieldType::NONINTERLACED);
 
 	++frameCount_;
+}
+
+// ---------------------------------------------------------------------------
+// Primary source query
+// ---------------------------------------------------------------------------
+
+bool V9968VerilatorDevice::isPrimary() const
+{
+	if (!postProcessor_) return false;
+	return postProcessor_->getVideoSource() ==
+	       postProcessor_->getVideoSourceSetting();
 }
 
 // ---------------------------------------------------------------------------

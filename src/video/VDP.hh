@@ -112,6 +112,9 @@ public:
 		return v9968Verilator_.get();
 	}
 
+	/** Returns the Display this VDP renders to. */
+	[[nodiscard]] Display& getDisplay() const { return display; }
+
 	/** Is this an MSX1 VDP?
 	  * @return True if this is an MSX1 VDP
 	  *   False otherwise.
@@ -1404,7 +1407,7 @@ private:
 	MSXCPU& cpu;
 	const uint8_t fixedVDPIOdelayCycles;
 
-	/** V9968 Verilator integration (only active when version==IODisabled). */
+	/** V9968 Verilator integration (active for V9958, V9938, and IODisabled). */
 	std::unique_ptr<V9968VerilatorDevice> v9968Verilator_;
 };
 SERIALIZE_CLASS_VERSION(VDP, 10);

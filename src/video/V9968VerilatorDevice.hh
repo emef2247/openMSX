@@ -12,24 +12,38 @@ class RawFrame;
 /**
  * V9968 Verilator integration device.
  *
- * Phase 1: stub implementation that renders a gradient pattern into
- * openMSX's RawFrame / PostProcessor pipeline.  The real verilated model
- * will replace the stub in a later phase.
+ * Phase 2: runs alongside V9958 (broadcast mode).  IO writes/reads are
+ * forwarded from VDP after V9958 has processed them.  The device owns its
+ * own PostProcessor registered under the "V9968Verilator" video source,
+ * allowing the user to switch between the standard V9958 output and the
+ * Verilator output at runtime.
  */
 class V9968VerilatorDevice {
 public:
 	explicit V9968VerilatorDevice(VDP& vdp);
 	~V9968VerilatorDevice();
 
-	// Called from VDP::writeIO() when version==IODisabled
+	/** (Re-)create the dedicated PostProcessor.
+	 *  Called from VDP::createRenderer() and VDP::postVideoSystemChange().
+	 *  Safe to call with a null screen (DummyRenderer case). */
+	void initPostProcessor();
+
+	/** Release the PostProcessor before the video system is torn down.
+	 *  Called from VDP::preVideoSystemChange(). */
+	void resetPostProcessor();
+
+	// Called from VDP::writeIO() – notification only, no early return
 	void onWriteIO(uint16_t port, uint8_t value, EmuTime time);
 
-	// Called from VDP::readIO()  when version==IODisabled
-	uint8_t onReadIO(uint16_t port, EmuTime time);
+	// Called from VDP::readIO() – notification only, return value unused
+	void onReadIO(uint16_t port, EmuTime time);
 
-	// Called from VDP::execVSync() when version==IODisabled
-	// Pushes a finished frame into the PostProcessor.
+	// Called from VDP::execVSync()
+	// Pushes a finished frame into the dedicated PostProcessor.
 	void onVSync(EmuTime time);
+
+	/** Returns true when this device's output is the active video source. */
+	[[nodiscard]] bool isPrimary() const;
 
 private:
 	// Frame dimensions (matching MSX2 SCREEN5)
@@ -39,6 +53,7 @@ private:
 	void renderStubFrame(RawFrame& frame);
 
 	VDP& vdp_;
+	std::unique_ptr<PostProcessor> postProcessor_;
 	std::unique_ptr<RawFrame> workFrame_;
 	uint32_t frameCount_ = 0;
 };
