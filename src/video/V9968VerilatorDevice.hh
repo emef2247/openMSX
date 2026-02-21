@@ -1,11 +1,11 @@
 #pragma once
+#include "MSXDevice.hh"
 #include "EmuTime.hh"
 #include <cstdint>
 #include <memory>
 
 namespace openmsx {
 
-class VDP;
 class PostProcessor;
 class RawFrame;
 
@@ -18,10 +18,10 @@ class RawFrame;
  * allowing the user to switch between the standard V9958 output and the
  * Verilator output at runtime.
  */
-class V9968VerilatorDevice {
+class V9968VerilatorDevice final : public MSXDevice {
 public:
-	explicit V9968VerilatorDevice(VDP& vdp);
-	~V9968VerilatorDevice();
+	explicit V9968VerilatorDevice(const DeviceConfig& config);
+	~V9968VerilatorDevice() override;
 
 	/** (Re-)create the dedicated PostProcessor.
 	 *  Called from VDP::createRenderer() and VDP::postVideoSystemChange().

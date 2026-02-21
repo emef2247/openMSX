@@ -24,7 +24,6 @@ TODO:
 #include "Renderer.hh"
 #include "RendererFactory.hh"
 #include "SpriteChecker.hh"
-#include "V9968VerilatorDevice.hh"
 #include "VDPCmdEngine.hh"
 #include "VDPVRAM.hh"
 
@@ -423,10 +422,6 @@ void VDP::execVSync(EmuTime time)
 	// This frame is finished.
 	// Inform VDP subcomponents.
 	// TODO: Do this via VDPVRAM?
-	// [V9968 Verilator] push rendered frame before openMSX's own frameEnd
-	if (v9968Verilator_) {
-		v9968Verilator_->onVSync(time);
-	}
 	renderer->frameEnd(time);
 	spriteChecker->frameEnd(time);
 

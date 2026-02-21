@@ -70,4 +70,8 @@ the openMSX console to see the gradient test pattern from the Verilator stub.</d
 
   </devices>
 
+  <extensions>
+    <extension>V9968Verilator</extension>
+  </extensions>
+
 </msxconfig>

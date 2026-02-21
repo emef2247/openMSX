@@ -26,7 +26,6 @@ namespace openmsx {
 
 class PostProcessor;
 class Renderer;
-class V9968VerilatorDevice;
 class VDPCmdEngine;
 class VDPVRAM;
 class MSXCPU;
