@@ -187,6 +187,7 @@ VDP::VDP(const DeviceConfig& config)
 	else if (versionString == "YM2220PAL") version = YM2220PAL;
 	else if (versionString == "YM2220NTSC") version = YM2220NTSC;
 	else if (versionString == "IODisabled") version = IODisabled;
+	else if (versionString == "V9968Verilator") version = IODisabled;
 	else throw MSXException("Unknown VDP version \"", versionString, '"');
 
 	// saturation parameters only make sense when using TMS VDPs
@@ -232,7 +233,7 @@ VDP::VDP(const DeviceConfig& config)
 	EmuTime time = getCurrentTime();
 	unsigned vramSize =
 		(isMSX1VDP() ? 16 : config.getChildDataAsInt("vram", 0));
-	if (vramSize != one_of(16u, 64u, 128u, 192u)) {
+	if (vramSize != one_of(16u, 64u, 128u, 192u, 256u)) {
 		throw MSXException(
 			"VRAM size of ", vramSize, "kB is not supported!");
 	}
