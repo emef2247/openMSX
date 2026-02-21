@@ -31,7 +31,7 @@ the openMSX console to see the gradient test pattern from the Verilator stub.</d
     </PPI>
 
     <VDP id="VDP">
-      <version>V9958</version>
+      <version>V9968Verilator</version>
       <vram>128</vram>
       <io base="0x98" num="4" type="O"/>
       <io base="0x98" num="2" type="I"/>
