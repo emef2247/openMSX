@@ -466,6 +466,7 @@ sources = files(
     'video/VDPAccessSlots.cc',
     'video/VDPCmdEngine.cc',
     'video/VDPVRAM.cc',
+    'video/V9968VerilatorDevice.cc',
     'video/VideoLayer.cc',
     'video/VideoSystem.cc',
     'video/VisibleSurface.cc',
