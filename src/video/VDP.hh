@@ -33,6 +33,7 @@ class SpriteChecker;
 class Display;
 class RawFrame;
 class Setting;
+class V9968VerilatorDevice;
 namespace VDPAccessSlots {
 	enum class Delta : int;
 	class Calculator;
@@ -106,6 +107,14 @@ public:
 	 * over the lifetime of the VDP object (on renderer switch).
 	 */
 	[[nodiscard]] PostProcessor* getPostProcessor() const;
+
+	/** Returns the Display object used by this VDP. */
+	[[nodiscard]] Display& getDisplay() { return display; }
+
+	/** Returns the V9968 Verilator helper, or nullptr if not created yet. */
+	[[nodiscard]] V9968VerilatorDevice* getV9968Verilator() const {
+		return v9968Verilator_.get();
+	}
 
 	/** Is this an MSX1 VDP?
 	  * @return True if this is an MSX1 VDP
@@ -1166,6 +1175,10 @@ private:
 	/** Renderer that converts this VDP's state into an image.
 	  */
 	std::unique_ptr<Renderer> renderer;
+
+	/** V9968 Verilator integration helper.
+	  */
+	std::unique_ptr<V9968VerilatorDevice> v9968Verilator_;
 
 	/** Command engine: the part of the V9938/58 that executes commands.
 	  */
