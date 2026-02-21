@@ -38,11 +38,18 @@ static inline void verlDebug(const char*, ...) {}
 V9968VerilatorDevice::V9968VerilatorDevice(VDP& vdp)
 	: vdp_(vdp)
 {
-	verlDebug("[VERL] V9968VerilatorDevice: constructed");
+	verlDebug("[VERL] V9968VerilatorDevice: constructing (FRAME_WIDTH=%u FRAME_HEIGHT=%u)",
+	          FRAME_WIDTH, FRAME_HEIGHT);
 
-	// Allocate a working frame (256 wide x 212 high, matching SCREEN5).
-	workFrame_ = std::make_unique<RawFrame>(256, 212);
+	workFrame_ = std::make_unique<RawFrame>(FRAME_WIDTH, FRAME_HEIGHT);
+	if (!workFrame_) {
+		verlDebug("[VERL] V9968VerilatorDevice: FATAL: workFrame_ allocation failed");
+		return;
+	}
 	workFrame_->init(RawFrame::FieldType::NONINTERLACED);
+
+	verlDebug("[VERL] V9968VerilatorDevice: constructed OK, workFrame_ height=%u",
+	          workFrame_->getHeight());
 }
 
 V9968VerilatorDevice::~V9968VerilatorDevice()
@@ -75,17 +82,41 @@ void V9968VerilatorDevice::onVSync(EmuTime time)
 {
 	verlDebug("[VERL] onVSync frame=%u", frameCount_);
 
-	if (!workFrame_) return;
-
 	PostProcessor* pp = vdp_.getPostProcessor();
-	if (!pp) return;
+	if (!pp) {
+		verlDebug("[VERL] onVSync: PostProcessor is null, skipping");
+		return;
+	}
 
-	// Fill the working frame with a gradient test pattern.
+	if (!workFrame_) {
+		verlDebug("[VERL] onVSync: workFrame_ is null, reallocating");
+		workFrame_ = std::make_unique<RawFrame>(FRAME_WIDTH, FRAME_HEIGHT);
+		workFrame_->init(RawFrame::FieldType::NONINTERLACED);
+	}
+
+	// Validate frame dimensions before rendering
+	if (workFrame_->getHeight() != FRAME_HEIGHT) {
+		verlDebug("[VERL] onVSync: frame height mismatch (got %u, expected %u), reallocating",
+		          workFrame_->getHeight(), FRAME_HEIGHT);
+		workFrame_ = std::make_unique<RawFrame>(FRAME_WIDTH, FRAME_HEIGHT);
+		workFrame_->init(RawFrame::FieldType::NONINTERLACED);
+	}
+
 	renderStubFrame(*workFrame_);
 
-	// Hand the completed frame to the PostProcessor (same pattern as
-	// V9990SDLRasterizer::frameEnd).
+	verlDebug("[VERL] onVSync: calling rotateFrames frame=%u", frameCount_);
 	workFrame_ = pp->rotateFrames(std::move(workFrame_), time);
+
+	// rotateFrames may return a frame of a different size; re-validate
+	if (!workFrame_) {
+		verlDebug("[VERL] onVSync: rotateFrames returned null, reallocating");
+		workFrame_ = std::make_unique<RawFrame>(FRAME_WIDTH, FRAME_HEIGHT);
+	}
+	if (workFrame_->getHeight() != FRAME_HEIGHT) {
+		verlDebug("[VERL] onVSync: post-rotate height mismatch (%u), reallocating",
+		          workFrame_->getHeight());
+		workFrame_ = std::make_unique<RawFrame>(FRAME_WIDTH, FRAME_HEIGHT);
+	}
 	workFrame_->init(RawFrame::FieldType::NONINTERLACED);
 
 	++frameCount_;
@@ -98,15 +129,26 @@ void V9968VerilatorDevice::onVSync(EmuTime time)
 void V9968VerilatorDevice::renderStubFrame(RawFrame& frame)
 {
 	const unsigned height = frame.getHeight();
-	const unsigned width  = 256;
+	const unsigned width  = FRAME_WIDTH;
+
+	verlDebug("[VERL] renderStubFrame: width=%u height=%u frame=%u", width, height, frameCount_);
+
+	if (height == 0) {
+		verlDebug("[VERL] renderStubFrame: height==0, skipping");
+		return;
+	}
 
 	for (unsigned y = 0; y < height; ++y) {
 		auto line = frame.getLineDirect(y);
+		if (line.size() < width) {
+			verlDebug("[VERL] renderStubFrame: line %u too short (%zu < %u), skipping",
+			          y, line.size(), width);
+			continue;
+		}
 		for (unsigned x = 0; x < width; ++x) {
 			uint8_t r = static_cast<uint8_t>((x * 255) / (width  - 1));
 			uint8_t g = static_cast<uint8_t>((y * 255) / (height - 1));
 			uint8_t b = static_cast<uint8_t>(frameCount_ & 0xFF);
-			// ARGB format (alpha=0xFF)
 			line[x] = (0xFFu << 24) | (uint32_t(r) << 16) |
 			           (uint32_t(g) << 8) | uint32_t(b);
 		}
