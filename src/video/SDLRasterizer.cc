@@ -194,6 +194,22 @@ void SDLRasterizer::frameStart(EmuTime time)
 
 void SDLRasterizer::frameEnd()
 {
+	if (vdp.isV9968Verilator()) {
+		// Render gradient test pattern for V9968Verilator stub
+		const unsigned height = workFrame->getHeight();
+		const unsigned width  = 256;
+		if (height < 2) return;
+		for (unsigned y = 0; y < height; ++y) {
+			auto line = workFrame->getLineDirect(y);
+			for (unsigned x = 0; x < width && x < line.size(); ++x) {
+				auto r = static_cast<uint8_t>((x * 255) / (width  - 1));
+				auto g = static_cast<uint8_t>((y * 255) / (height - 1));
+				line[x] = (0xFFu << 24) | (uint32_t(r) << 16) |
+				           (uint32_t(g) << 8);
+			}
+			workFrame->setLineWidth(y, width);
+		}
+	}
 }
 
 void SDLRasterizer::setDisplayMode(DisplayMode mode)

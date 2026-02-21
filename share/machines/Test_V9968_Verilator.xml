@@ -6,9 +6,9 @@
     <manufacturer>openMSX Team</manufacturer>
     <code>Test_V9968_Verilator</code>
     <release_year>2025</release_year>
-    <description>Test machine for V9968 Verilator integration (Phase 1 stub).
-The VDP is configured with version=IODisabled so that the V9968VerilatorDevice
-stub renders gradient frames via the PostProcessor pipeline.</description>
+    <description>Test machine for V9968 Verilator integration.
+Load the V9968Verilator extension (-ext V9968Verilator) to add a second
+VideoSource showing the Verilator gradient stub alongside the host VDP.</description>
     <type>MSX2</type>
     <region>jp</region>
   </info>
@@ -30,7 +30,7 @@ stub renders gradient frames via the PostProcessor pipeline.</description>
     </PPI>
 
     <VDP id="VDP">
-      <version>IODisabled</version>
+      <version>V9958</version>
       <vram>128</vram>
       <io base="0x98" num="4" type="O"/>
       <io base="0x98" num="2" type="I"/>

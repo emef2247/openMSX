@@ -26,7 +26,6 @@ namespace openmsx {
 
 class PostProcessor;
 class Renderer;
-class V9968VerilatorDevice;
 class VDPCmdEngine;
 class VDPVRAM;
 class MSXCPU;
@@ -108,10 +107,6 @@ public:
 	 */
 	[[nodiscard]] PostProcessor* getPostProcessor() const;
 
-	[[nodiscard]] V9968VerilatorDevice* getV9968Verilator() const {
-		return v9968Verilator_.get();
-	}
-
 	/** Is this an MSX1 VDP?
 	  * @return True if this is an MSX1 VDP
 	  *   False otherwise.
@@ -153,6 +148,13 @@ public:
 	  */
 	[[nodiscard]] bool hasYJK() const {
 		return (version & VM_YJK) != 0;
+	}
+
+	/** Is this a V9968 Verilator extension VDP?
+	  * @return True for V9968Verilator, false otherwise.
+	  */
+	[[nodiscard]] bool isV9968Verilator() const {
+		return (version & VM_V9968_VERILATOR) != 0;
 	}
 
 	/** Get the (fixed) palette for this MSX1 VDP.
@@ -795,10 +797,11 @@ private:
 	static constexpr unsigned VM_TOSHIBA_PALETTE  =  32; // set-> has Toshiba palette
 	static constexpr unsigned VM_YJK              =  64; // set-> has YJK (MSX2+)
 	static constexpr unsigned VM_YM2220_PALETTE   = 128; // set-> has YM2220 palette
-	static constexpr unsigned VM_IO_DISABLE		  = 0xFF;// set-> IOs are not mapped 
+	static constexpr unsigned VM_IO_DISABLE		  = 0xFF;// set-> IOs are not mapped
+	static constexpr unsigned VM_V9968_VERILATOR  = 512; // set-> V9968 Verilator mode
 
 	/** VDP version: the VDP model being emulated. */
-	enum VdpVersion : uint8_t {
+	enum VdpVersion : uint16_t {
 		/** MSX1 VDP, NTSC version.
 		  * TMS9918A has NTSC encoding built in,
 		  * while TMS9928A has color difference output;
@@ -837,8 +840,11 @@ private:
 
 		/** MSX2+ and turbo R VDP. */
 		V9958      = VM_YJK,
-		
+
 		IODisabled = VM_IO_DISABLE,
+
+		/** V9968 Verilator integration (extension mode). */
+		V9968Verilator = VM_YJK | VM_V9968_VERILATOR,
 	};
 
 	struct SyncBase : public Schedulable {
@@ -1403,9 +1409,6 @@ private:
 	/** Cached CPU reference */
 	MSXCPU& cpu;
 	const uint8_t fixedVDPIOdelayCycles;
-
-	/** V9968 Verilator integration (only active when version==IODisabled). */
-	std::unique_ptr<V9968VerilatorDevice> v9968Verilator_;
 };
 SERIALIZE_CLASS_VERSION(VDP, 10);
 

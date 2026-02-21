@@ -1,0 +1,21 @@
+<?xml version="1.0" ?>
+<!DOCTYPE msxconfig SYSTEM 'msxconfig2.dtd'>
+<msxconfig>
+  <info>
+    <name>V9968Verilator</name>
+    <manufacturer>openMSX Dev</manufacturer>
+    <code/>
+    <release_year>2025</release_year>
+    <description>V9968 Verilator integration device. Exposes a 'V9968Verilator' video source alongside the host VDP.</description>
+    <type>graphics expansion</type>
+  </info>
+  <devices>
+    <VDP id="V9968Verilator">
+      <version>V9968Verilator</version>
+      <vram>128</vram>
+      <io base="0x88" num="5" type="O"/>
+      <io base="0x88" num="5" type="I"/>
+      <timing>0</timing>
+    </VDP>
+  </devices>
+</msxconfig>
