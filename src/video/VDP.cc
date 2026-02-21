@@ -144,6 +144,7 @@ VDP::VDP(const DeviceConfig& config)
 	else if (versionString == "TMS9129") version = TMS9129;
 	else if (versionString == "V9938") version = V9938;
 	else if (versionString == "V9958") version = V9958;
+	else if (versionString == "V9968Verilator") version = V9958;
 	else if (versionString == "YM2220PAL") version = YM2220PAL;
 	else if (versionString == "YM2220NTSC") version = YM2220NTSC;
 	else throw MSXException("Unknown VDP version \"", versionString, '"');
@@ -191,7 +192,7 @@ VDP::VDP(const DeviceConfig& config)
 	EmuTime time = getCurrentTime();
 	unsigned vramSize =
 		(isMSX1VDP() ? 16 : config.getChildDataAsInt("vram", 0));
-	if (vramSize != one_of(16u, 64u, 128u, 192u)) {
+	if (vramSize != one_of(16u, 64u, 128u, 192u, 256u)) {
 		throw MSXException(
 			"VRAM size of ", vramSize, "kB is not supported!");
 	}

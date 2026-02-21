@@ -1,0 +1,25 @@
+<?xml version="1.0" ?>
+<!DOCTYPE msxconfig SYSTEM 'msxconfig2.dtd'>
+<msxconfig>
+
+  <info>
+    <name>V9968 Verilator</name>
+    <manufacturer>openMSX Team</manufacturer>
+    <code/>
+    <release_year>2025</release_year>
+    <description>V9968 Verilator integration extension (Phase 1 stub).
+Registers V9968VerilatorDevice as a standalone openMSX device.
+When loaded, it adds a "V9968Verilator" video source that renders
+a gradient frame stub. Switch to it via the console to see the output.</description>
+    <type>debug tool</type>
+  </info>
+
+  <devices>
+
+    <V9968VerilatorDevice id="V9968Verilator">
+      <io base="0x88" num="1" type="IO"/>
+    </V9968VerilatorDevice>
+
+  </devices>
+
+</msxconfig>
