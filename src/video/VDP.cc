@@ -24,6 +24,7 @@ TODO:
 #include "Renderer.hh"
 #include "RendererFactory.hh"
 #include "SpriteChecker.hh"
+#include "V9968VerilatorDevice.hh"
 #include "VDPCmdEngine.hh"
 #include "VDPVRAM.hh"
 
@@ -247,6 +248,11 @@ VDP::VDP(const DeviceConfig& config)
 	cmdEngine = std::make_unique<VDPCmdEngine>(*this, getCommandController());
 	vram->setCmdEngine(cmdEngine.get());
 
+	// Create V9968 Verilator integration helper (only for V9968Verilator mode).
+	if (versionString == "V9968Verilator") {
+		v9968Verilator_ = std::make_unique<V9968VerilatorDevice>(*this);
+	}
+
 	// Initialise renderer.
 	createRenderer();
 
@@ -268,6 +274,7 @@ VDP::~VDP()
 
 void VDP::preVideoSystemChange() noexcept
 {
+	if (v9968Verilator_) v9968Verilator_->resetPostProcessor();
 	renderer.reset();
 }
 
@@ -283,6 +290,7 @@ void VDP::createRenderer()
 	//       which is most likely in the past?
 	//renderer->reset(frameStartTime.getTime());
 	vram->setRenderer(renderer.get(), frameStartTime.getTime());
+	if (v9968Verilator_) v9968Verilator_->initPostProcessor();
 }
 
 PostProcessor* VDP::getPostProcessor() const
@@ -412,6 +420,7 @@ void VDP::execVSync(EmuTime time)
 	// TODO: Do this via VDPVRAM?
 	renderer->frameEnd(time);
 	spriteChecker->frameEnd(time);
+	if (v9968Verilator_) v9968Verilator_->onVSync(time);
 
 	if (isFastBlinkEnabled()) {
 		// adjust blinkState and blinkCount for next frame
@@ -824,6 +833,7 @@ void VDP::writeIO(uint16_t port, uint8_t value, EmuTime time_)
 		break;
 	}
 	}
+	if (v9968Verilator_) v9968Verilator_->onWriteIO(port, value, time);
 }
 
 std::string_view VDP::getVersionString() const
@@ -1129,6 +1139,8 @@ uint8_t VDP::readIO(uint16_t port, EmuTime time_)
 	assert(isInsideFrame(time));
 
 	registerDataStored = false; // Abort any port #1 writes in progress.
+
+	if (v9968Verilator_) v9968Verilator_->onReadIO(port, time);
 
 	switch (port & (isMSX1VDP() ? 0x01 : 0x03)) {
 	case 0: // VRAM data read

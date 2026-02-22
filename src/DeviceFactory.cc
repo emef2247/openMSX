@@ -85,7 +85,6 @@
 #include "ToshibaFDC.hh"
 #include "TurboRFDC.hh"
 #include "V9990.hh"
-#include "V9968VerilatorDevice.hh"
 #include "MSXPiDevice.hh"
 #include "VDP.hh"
 #include "VDPIODelay.hh"
@@ -288,8 +287,6 @@ std::unique_ptr<MSXDevice> DeviceFactory::create(DeviceConfig& conf)
 		result = std::make_unique<DebugDevice>(conf);
 	} else if (type == "V9990") {
 		result = std::make_unique<V9990>(conf);
-	} else if (type == "V9968VerilatorDevice") {
-		result = std::make_unique<V9968VerilatorDevice>(conf);
 	} else if (type == "Video9000") {
 		result = std::make_unique<Video9000>(conf);
 	} else if (type == "ADVram") {

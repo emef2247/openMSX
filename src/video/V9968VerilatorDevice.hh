@@ -1,5 +1,4 @@
 #pragma once
-#include "MSXDevice.hh"
 #include "EmuTime.hh"
 #include <cstdint>
 #include <memory>
@@ -8,23 +7,26 @@ namespace openmsx {
 
 class PostProcessor;
 class RawFrame;
+class VDP;
 
 /**
- * V9968 Verilator integration device.
+ * V9968 Verilator integration helper.
  *
  * Phase 2: runs alongside V9958 (broadcast mode).  IO writes/reads are
  * forwarded from VDP after V9958 has processed them.  The device owns its
  * own PostProcessor registered under the "V9968Verilator" video source,
  * allowing the user to switch between the standard V9958 output and the
  * Verilator output at runtime.
+ *
+ * This is NOT an MSXDevice – it is a helper owned by VDP.
  */
-class V9968VerilatorDevice final : public MSXDevice {
+class V9968VerilatorDevice {
 public:
-	explicit V9968VerilatorDevice(const DeviceConfig& config);
-	~V9968VerilatorDevice() override;
+	explicit V9968VerilatorDevice(VDP& vdp);
+	~V9968VerilatorDevice();
 
 	/** (Re-)create the dedicated PostProcessor.
-	 *  Called from VDP::createRenderer() and VDP::postVideoSystemChange().
+	 *  Called from VDP::createRenderer().
 	 *  Safe to call with a null screen (DummyRenderer case). */
 	void initPostProcessor();
 
@@ -35,7 +37,7 @@ public:
 	// Called from VDP::writeIO() – notification only, no early return
 	void onWriteIO(uint16_t port, uint8_t value, EmuTime time);
 
-	// Called from VDP::readIO() – notification only, return value unused
+	// Called from VDP::readIO() – notification only
 	void onReadIO(uint16_t port, EmuTime time);
 
 	// Called from VDP::execVSync()
